@@ -1,0 +1,760 @@
+<!doctype html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Axon Cs Command Center",
+  "schemaVersion": 1,
+  "description": "Axon Customer Success Command Center — a live, Gainsight-lite dashboard on Axon Salesforce. Pulls the open renewal book (18-month window), builds the exec→team→CSM→account org hierarchy from the manager chain, and computes transparent, tunable health scores from live open cases, renewal timing, and last-activity engagement. Account 360 now includes full purchase history & lifetime value, product families and top items purchased (closed-won line items), and a derived customer sentiment/satisfaction index from lifetime support-case signals. Tabs: Command Center overview, Org Drill-down, Renewals triage, Escalations tracker (status persists locally), My Worklist, and a CS-Ops-owned Health Model editor. Axon-branded styling.",
+  "mcpTools": [
+    "mcp__ea67da7f-8cd3-49fa-ab02-2f7ec8fda78f__run_soql_query"
+  ],
+  "mcpServerNames": [
+    "Axon Salesforce"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Axon CS Command Center</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+/* Axon brand system: black + white + Axon Yellow, flat/editorial, high-contrast */
+:root{
+  color-scheme: light;
+  --bg:#ffffff; --page:#f2f2f0; --panel:#ffffff; --ink:#111112; --muted:#6a6a6a; --line:#e2e2df; --line2:#0f0f10;
+  --black:#0f0f10; --yellow:#ffd200; --yellow-d:#e0b900; --yellow-ink:#141200;
+  --green:#0f7a55; --greenbg:#e8f3ee; --amber:#b06a00; --amberbg:#fbf0dd; --red:#c8102e; --redbg:#fbe7ea;
+  --graybg:#eeeeec;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+  font:14px/1.55 "Helvetica Neue",Helvetica,Arial,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+.up{text-transform:uppercase;letter-spacing:.08em}
+.wrap{max-width:1320px;margin:0 auto;padding:0 0 64px}
+
+/* Masthead — black bar, AXON wordmark, yellow rule */
+header.top{background:var(--black);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;padding:16px 24px;border-bottom:3px solid var(--yellow)}
+.brand{display:flex;align-items:center;gap:16px}
+.logo{font-weight:800;font-size:23px;letter-spacing:.16em;color:#fff;padding-right:16px;border-right:1px solid #3a3a3c}
+.logo b{color:var(--yellow)}
+.brand h1{font-size:14px;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:.10em}
+.brand .sub{color:#9c9c9e;font-size:11px;margin-top:3px;letter-spacing:.03em}
+#asof{color:#a6a6a8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+.inner{padding:20px 24px 0}
+
+.scopebar{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);
+  padding:9px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:20px 0 16px}
+.crumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.crumb button{border:none;background:none;color:var(--muted);cursor:pointer;font:inherit;padding:2px 4px;font-weight:600}
+.crumb button:hover{color:var(--ink);text-decoration:underline;text-decoration-color:var(--yellow);text-underline-offset:3px}
+.crumb .sep{color:#c4c4c1}
+.crumb .cur{color:var(--ink);font-weight:800}
+.scopebar .role{margin-left:auto;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+nav.tabs button{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:8px 17px;cursor:pointer;
+  font:inherit;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;
+  transition:background .12s,color .12s,border-color .12s;display:inline-flex;align-items:center}
+nav.tabs button:hover{color:var(--ink);border-color:#c9c9c5;background:#fbfbf9}
+nav.tabs button.active{background:var(--black);color:#fff;border-color:var(--black);box-shadow:inset 0 0 0 2px var(--black),0 0 0 2px var(--yellow)}
+nav.tabs button .b{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;margin-left:7px;
+  background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:999px}
+nav.tabs button.active .b{background:var(--yellow);color:var(--yellow-ink)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;margin-bottom:18px;background:var(--line)}
+.kpi{background:var(--panel);padding:15px 17px;position:relative}
+.kpi::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:var(--black)}
+.kpi.accent::before{background:var(--yellow)}
+.kpi .l{color:var(--muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.kpi .v{font-size:27px;font-weight:800;margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:11.5px;color:var(--muted);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:16px}
+@media(max-width:920px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);padding:18px;margin-bottom:16px}
+.card h3{margin:0 0 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+  padding-bottom:10px;border-bottom:1px solid var(--line)}
+.card h3 .hint{font-weight:500;color:var(--muted);font-size:11px;margin-left:8px;text-transform:none;letter-spacing:0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+thead th{border-bottom:2px solid var(--line2)}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;cursor:pointer;user-select:none}
+th:hover{color:var(--ink)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#fbfbf8}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:2px 8px;font-size:10.5px;font-weight:800;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em;border-radius:2px}
+.p-green{background:var(--greenbg);color:var(--green)} .p-amber{background:var(--amberbg);color:var(--amber)} .p-red{background:var(--redbg);color:var(--red)}
+.p-gray{background:var(--graybg);color:#4a4a4a}
+.hs{display:inline-flex;align-items:center;gap:8px}
+.bar{width:54px;height:6px;background:#eaeae6;overflow:hidden}
+.bar i{display:block;height:100%}
+.chartbox{position:relative;height:252px}
+.mini{color:var(--muted);font-size:12px}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line2);background:var(--panel);color:var(--ink);padding:6px 12px;cursor:pointer;font:inherit;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-radius:2px}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.primary{background:var(--yellow);color:var(--yellow-ink);border-color:var(--yellow)}
+.btn.primary:hover{background:var(--yellow-d);color:var(--yellow-ink)}
+.overlay{position:fixed;inset:0;background:rgba(15,15,16,.55);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow:auto}
+.overlay.show{display:flex}
+.sheet{background:var(--panel);max-width:780px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;border-top:3px solid var(--yellow)}
+.sheet .hd{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.sheet .hd h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.01em}
+.sheet .bd{padding:22px}
+.x{border:1px solid var(--line);background:#fff;width:30px;height:30px;cursor:pointer;font-size:15px;color:var(--muted);border-radius:2px}
+.x:hover{background:var(--ink);color:#fff}
+.comp{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:13px;margin-top:6px}
+.comp .neg{color:var(--red);font-weight:800;font-variant-numeric:tabular-nums}
+.comp .pos{color:var(--green);font-weight:800;font-variant-numeric:tabular-nums}
+.slider{display:grid;grid-template-columns:190px 1fr 44px;align-items:center;gap:12px;margin:10px 0}
+.slider label{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
+.slider input{width:100%;accent-color:var(--black)}
+.slider span{font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:14px}
+.tl .ev{margin-bottom:12px;position:relative}
+.tl .ev::before{content:"";position:absolute;left:-21px;top:4px;width:9px;height:9px;background:var(--yellow);border:2px solid var(--black)}
+.tl .ev .t{font-size:11px;color:var(--muted)}
+.loading{text-align:center;padding:70px 20px;color:var(--muted)}
+.spinner{width:28px;height:28px;border:3px solid #e4e4e0;border-top-color:var(--yellow);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+.err{background:var(--redbg);color:var(--red);padding:12px 14px;margin:10px 0;font-weight:700;border-left:3px solid var(--red)}
+.tag{font-size:10.5px;color:var(--muted);background:var(--graybg);padding:1px 6px;font-weight:700}
+.treewrap .node{border:1px solid var(--line);margin-bottom:8px;overflow:hidden}
+.treewrap .node:hover{border-color:var(--line2)}
+.treewrap .nhead{display:grid;grid-template-columns:1fr auto auto auto auto;gap:12px;align-items:center;padding:13px 16px;cursor:pointer;border-left:3px solid transparent}
+.treewrap .nhead:hover{background:#fbfbf8;border-left-color:var(--yellow)}
+.treewrap .nname{font-weight:800}
+.treewrap .ntitle{color:var(--muted);font-size:11.5px;font-weight:500}
+.treewrap .metric{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:700}
+.treewrap .metric b{display:block;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.select{border:1px solid var(--line2);padding:6px 10px;font:inherit;background:var(--panel);font-weight:600;border-radius:2px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:12px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;display:inline-block}
+.foot{color:var(--muted);font-size:11px;margin-top:24px;line-height:1.7;border-top:1px solid var(--line);padding-top:14px}
+.searchbar{margin:0 0 14px}
+.searchbar input{width:100%;max-width:360px;border:1px solid var(--line2);padding:8px 12px;font:inherit;border-radius:2px}
+.notes-in{width:100%;border:1px solid var(--line2);padding:8px 10px;font:inherit;resize:vertical;border-radius:2px}
+/* product spend list */
+.prodlist{display:flex;flex-direction:column;gap:7px}
+.prow{display:grid;grid-template-columns:180px 1fr 80px;gap:10px;align-items:center;font-size:12.5px}
+.prow .pn{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .pbar{height:9px;background:#eeeeec;overflow:hidden}
+.prow .pbar i{display:block;height:100%;background:var(--black)}
+.prow .pv{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+@media(max-width:560px){.prow{grid-template-columns:120px 1fr 66px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">AX<b>O</b>N</div>
+      <div>
+        <h1>Customer Success Command Center</h1>
+        <div class="sub">Live Salesforce renewal intelligence · Protect Life</div>
+      </div>
+    </div>
+    <div id="asof"></div>
+  </header>
+
+  <div class="inner">
+  <div class="scopebar">
+    <div class="crumb" id="crumb"></div>
+    <div class="role" id="scoperole"></div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview" class="active">Command Center</button>
+    <button data-tab="hierarchy">Org Drill-down</button>
+    <button data-tab="renewals">Renewals</button>
+    <button data-tab="escalations">Escalations <span class="b" id="escBadge">0</span></button>
+    <button data-tab="worklist">My Worklist</button>
+    <button data-tab="model">Health Model</button>
+  </nav>
+
+  <div id="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Querying Axon Salesforce — renewals, org hierarchy, purchase history & support signals…</div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+
+<script>
+"use strict";
+const SF = 'mcp__ea67da7f-8cd3-49fa-ab02-2f7ec8fda78f__run_soql_query';
+const $ = s => document.querySelector(s);
+const fmtMoney = n => n==null?'—':(n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1e3?'$'+Math.round(n/1e3)+'k':'$'+Math.round(n));
+const fmtFull = n => n==null?'—':'$'+Math.round(n).toLocaleString();
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = d => d?new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'2-digit'}):'—';
+function commPill(sub){ const m={Email:['Email','p-gray'],Call:['Call','p-amber'],ListEmail:['Bulk email','p-gray'],Task:['Note','p-gray'],Meeting:['Meeting','p-green'],Event:['Meeting','p-green']}; const x=m[sub]||[sub||'Activity','p-gray']; return `<span class="pill ${x[1]}">${x[0]}</span>`; }
+function commSubject(s){ s=(s||'').replace(/^Email:\s*/i,''); return s.trim()||'(no subject)'; }
+function cleanComm(d){ if(!d) return ''; let s=String(d); const bi=s.indexOf('Body:'); if(bi>=0 && bi<500) s=s.slice(bi+5); s=s.replace(/thread::[\s\S]*$/,'').replace(/---+\s*Original Message\s*---+[\s\S]*$/i,''); return s.replace(/\s+/g,' ').trim(); }
+// Friendly labels for the few Product2.Family values we can name with confidence;
+// everything else is shown as the raw Salesforce family value (title-cased) so nothing is misrepresented.
+const PRODMAP={SAAS:'SaaS / Software (Evidence.com)',Cart:'Cartridges',Training:'Training',INTERVIEW:'Axon Interview','FLEX 2':'Flex 2',X26:'X26',COMMANDER:'Commander'};
+function prodName(f){ if(f==null||f==='') return 'Uncategorized'; if(PRODMAP[f]) return PRODMAP[f]; return String(f).toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
+
+// ---------- persisted CS-ops settings ----------
+const LS = {
+  get(k,d){try{const v=localStorage.getItem('axoncs_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('axoncs_'+k,JSON.stringify(v))}catch(e){}}
+};
+const DEFAULT_WEIGHTS={openCase:2,highSev:9,proxNear:22,proxMid:10,stageRisk:12,engage:16};
+let WEIGHTS = Object.assign({}, DEFAULT_WEIGHTS, LS.get('weights',{}));
+let escState = LS.get('escState',{});     // acctId -> {status, log:[{t,note}]}
+
+// ---------- data call ----------
+function bridgeReady(){ return !!(window.cowork && typeof window.cowork.callMcpTool==='function'); }
+async function waitForBridge(ms=25000){ const s=Date.now(); while(!bridgeReady()){ if(Date.now()-s>ms) throw new Error('the data connection isn’t ready'); await new Promise(r=>setTimeout(r,150)); } }
+async function soql(q,retry=2){
+  if(!bridgeReady()) await waitForBridge();
+  try{
+    const r = await window.cowork.callMcpTool(SF,{query:q});
+    if(r && r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||'Salesforce error');
+    let data = r.structuredContent;
+    if(!data && r.content && r.content[0] && r.content[0].text){ data = JSON.parse(r.content[0].text); }
+    return (data && data.records) || [];
+  }catch(e){
+    const msg=(e&&e.message)||String(e);
+    if(/allowlist|not in this artifact/i.test(msg)) throw e;   // connector-identity issue — don't retry, surface immediately
+    if(retry>0){ await new Promise(r=>setTimeout(r,1500)); return soql(q,retry-1); }  // transient timeout / bridge hiccup
+    throw e;
+  }
+}
+function sfDate(d){return d.toISOString().slice(0,10);}
+
+// ---------- state ----------
+let STATE = { accounts:[], users:{}, tree:null, nodeIndex:{}, scope:'ROOT', tab:'overview', bookCommsByScope:{} };
+let charts = {};
+let commsCache = {};   // per-account communications
+let intelCache = {};   // per-account purchase history + products
+
+// ---------- load pipeline ----------
+async function load(){
+  const today = new Date();
+  const end = new Date(); end.setMonth(end.getMonth()+18);
+  const q1 = `SELECT Id, Name, Amount, CloseDate, StageName, AccountId, Account.Name, Account.BillingState, Account.LastActivityDate, OwnerId, Owner.Name, Owner.Title
+    FROM Opportunity
+    WHERE Type='Renewal' AND IsClosed=false AND Amount!=null AND Amount>0
+      AND CloseDate>=${sfDate(today)} AND CloseDate<=${sfDate(end)}
+      AND Owner.Name!='Axon IT SFDC' AND (NOT Account.Name LIKE '%TEST%')
+    ORDER BY Amount DESC LIMIT 300`;
+  const opps = await soql(q1);
+  if(!opps.length){ renderError('No open renewal opportunities returned in the 18-month window.'); return; }
+
+  // aggregate opps -> accounts
+  const acctMap = {};
+  const ownerIds = new Set();
+  opps.forEach(o=>{
+    ownerIds.add(o.OwnerId);
+    let a = acctMap[o.AccountId];
+    if(!a){ a = acctMap[o.AccountId] = {
+      id:o.AccountId, name:(o.Account&&o.Account.Name)||'(unknown)',
+      state:(o.Account&&o.Account.BillingState)||'', ownerId:o.OwnerId,
+      ownerName:(o.Owner&&o.Owner.Name)||'', ownerTitle:(o.Owner&&o.Owner.Title)||'',
+      renewalAmount:0, opps:[], nextClose:null, openCases:0, highCases:0, byPri:{},
+      lastAct:(o.Account&&o.Account.LastActivityDate)||null,
+      // new enrichment fields (filled by batch queries below)
+      ltv:0, pastDeals:0, firstPurchase:null, lastPurchase:null,
+      lifeCases:0, lifeHigh:0, lifeEsc:0, sentiment:null, sentTier:'none'
+    };}
+    a.renewalAmount += o.Amount||0;
+    a.opps.push({name:o.Name, amount:o.Amount, close:o.CloseDate, stage:o.StageName});
+    if(!a.nextClose || o.CloseDate < a.nextClose) a.nextClose = o.CloseDate;
+  });
+  const accounts = Object.values(acctMap);
+  const acctIds = accounts.map(a=>a.id);
+
+  // round 2: cases + org chain + purchase history + lifetime support sentiment.
+  const idList = a => a.map(x=>`'${x}'`).join(',');
+  const q3 = `SELECT AccountId, Priority, COUNT(Id) cnt FROM Case
+    WHERE AccountId IN (${idList(acctIds)}) AND IsClosed=false GROUP BY AccountId, Priority`;
+  // lifetime closed-won purchase history per account
+  const qDeals = `SELECT AccountId, COUNT(Id) c, SUM(Amount) s, MIN(CloseDate) mn, MAX(CloseDate) mx
+    FROM Opportunity WHERE IsWon=true AND AccountId IN (${idList(acctIds)}) GROUP BY AccountId`;
+  // lifetime support-case signals for sentiment/satisfaction
+  const qSent = `SELECT AccountId, Priority, IsEscalated, COUNT(Id) c
+    FROM Case WHERE AccountId IN (${idList(acctIds)}) GROUP BY AccountId, Priority, IsEscalated`;
+  async function fetchOrgChain(seedIds){
+    const map={}; let frontier=[...new Set(seedIds)].filter(Boolean); let depth=0;
+    while(frontier.length && depth<10){
+      const batch=frontier.filter(id=>!map[id]); if(!batch.length) break;
+      const rows=await soql(`SELECT Id, Name, Title, ManagerId FROM User WHERE Id IN (${idList(batch)})`);
+      rows.forEach(u=>{ map[u.Id]=u; });
+      frontier=rows.map(u=>u.ManagerId).filter(id=>id && !map[id]);
+      depth++;
+    }
+    return map;
+  }
+  const [userMap, cases, dealAgg, sentAgg] = await Promise.all([
+    fetchOrgChain([...ownerIds]), soql(q3), soql(qDeals), soql(qSent)
+  ]);
+
+  // cases -> accounts (open)
+  cases.forEach(c=>{
+    const a = acctMap[c.AccountId]; if(!a) return;
+    const p = c.Priority||'None'; const n = c.cnt||0;
+    a.byPri[p] = (a.byPri[p]||0)+n; a.openCases += n;
+    if(p==='High'||p==='Urgent'||p==='Critical') a.highCases += n;
+  });
+
+  // purchase history -> accounts
+  dealAgg.forEach(r=>{
+    const a=acctMap[r.AccountId]; if(!a) return;
+    a.ltv=r.s||0; a.pastDeals=r.c||0; a.firstPurchase=r.mn||null; a.lastPurchase=r.mx||null;
+  });
+
+  // lifetime support signals -> accounts
+  sentAgg.forEach(r=>{
+    const a=acctMap[r.AccountId]; if(!a) return;
+    const n=r.c||0; a.lifeCases+=n;
+    if(r.IsEscalated) a.lifeEsc+=n;
+    if(r.Priority==='High'||r.Priority==='Urgent'||r.Priority==='Critical') a.lifeHigh+=n;
+  });
+  accounts.forEach(computeSentiment);
+
+  // users -> node index (flat records: Id, Name, Title, ManagerId)
+  const nodes = {};
+  Object.values(userMap).forEach(u=>{ nodes[u.Id]={id:u.Id,name:u.Name,title:u.Title||'',managerId:u.ManagerId||null,children:{},accounts:[]}; });
+  // attach accounts to owner nodes
+  accounts.forEach(a=>{ const o=nodes[a.ownerId]; if(o) o.accounts.push(a); });
+  // build children links
+  Object.values(nodes).forEach(n=>{ if(n.managerId && nodes[n.managerId]) nodes[n.managerId].children[n.id]=nodes[n.id]; });
+  // roots = nodes with no manager in set
+  const roots = Object.values(nodes).filter(n=>!n.managerId || !nodes[n.managerId]);
+  // synthetic ROOT
+  const root = {id:'ROOT', name:'Axon Customer Success', title:'All teams', children:{}, accounts:[], synthetic:true};
+  roots.forEach(r=> root.children[r.id]=r);
+
+  STATE.accounts = accounts; STATE.users = nodes; STATE.tree = root; STATE.nodeIndex = Object.assign({ROOT:root}, nodes);
+  computeAll();
+  $('#asof').textContent = 'As of '+today.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  route();
+}
+
+// ---------- sentiment / satisfaction (derived from lifetime support signals) ----------
+// Salesforce in this org has no native CSAT/NPS field, so we derive a transparent
+// sentiment index from the customer's lifetime support-case history.
+function computeSentiment(a){
+  const total=a.lifeCases||0;
+  if(total===0){ a.sentiment=null; a.sentTier='none'; return; }
+  const highRate=(a.lifeHigh||0)/total, escRate=(a.lifeEsc||0)/total;
+  let pen=0;
+  pen += Math.min(highRate*100*0.45, 35);      // share of high/urgent tickets
+  pen += Math.min(escRate*100*0.90, 30);        // share of escalated tickets
+  pen += Math.min(total/250*15, 15);            // sheer support burden
+  pen += Math.min((a.highCases||0)*4, 20);      // currently-open high/urgent
+  const s=Math.max(0,Math.min(100,Math.round(100-pen)));
+  a.sentiment=s; a.sentTier = s>=70?'pos':s>=45?'neu':'neg';
+}
+function sentPill(a){
+  if(a.sentiment==null) return '<span class="pill p-gray">No history</span>';
+  const cls=a.sentTier==='pos'?'p-green':a.sentTier==='neu'?'p-amber':'p-red';
+  const lbl=a.sentTier==='pos'?'Positive':a.sentTier==='neu'?'Neutral':'Strained';
+  return `<span class="pill ${cls}">${lbl} · ${a.sentiment}</span>`;
+}
+
+// ---------- health scoring (transparent, tunable) ----------
+function daysTo(d){ if(!d) return 9999; return Math.round((new Date(d)-new Date())/86400000); }
+const EARLY = new Set(['Discovering','Pre Sales','Interest','Qualifying','Evaluation/Scoping','Prospecting']);
+function scoreAccount(a){
+  const comps=[]; let pen=0;
+  if(a.openCases>0){ const p=Math.min(a.openCases*WEIGHTS.openCase,26); pen+=p; comps.push(['Open support cases ('+a.openCases+')',-Math.round(p)]); }
+  if(a.highCases>0){ const p=Math.min(a.highCases*WEIGHTS.highSev,30); pen+=p; comps.push(['High/urgent cases ('+a.highCases+')',-Math.round(p)]); }
+  const d=daysTo(a.nextClose);
+  if(d<=90){ pen+=WEIGHTS.proxNear; comps.push(['Renewal within 90 days',-WEIGHTS.proxNear]); }
+  else if(d<=180){ pen+=WEIGHTS.proxMid; comps.push(['Renewal within 180 days',-WEIGHTS.proxMid]); }
+  const earlyStage = a.opps.some(o=>EARLY.has(o.stage));
+  if(d<=120 && earlyStage){ pen+=WEIGHTS.stageRisk; comps.push(['Near renewal still in early stage',-WEIGHTS.stageRisk]); }
+  const dsAct = a.lastAct ? Math.round((new Date()-new Date(a.lastAct))/86400000) : null;
+  a.dsAct = dsAct;
+  if(dsAct==null || dsAct>180){ pen+=WEIGHTS.engage; comps.push([dsAct==null?'No engagement logged on account':('No activity in '+dsAct+' days'),-WEIGHTS.engage]); }
+  else if(dsAct>90){ const p=Math.round(WEIGHTS.engage*0.5); pen+=p; comps.push(['Light engagement ('+dsAct+'d since last touch)',-p]); }
+  const score=Math.max(0,Math.min(100,Math.round(100-pen)));
+  a.health=score; a.comps=comps; a.dclose=d;
+  a.tier = score>=75?'healthy':score>=50?'watch':'atrisk';
+  a.riskARR = a.renewalAmount*(100-score)/100;
+  return a;
+}
+function computeAll(){ STATE.accounts.forEach(scoreAccount); rebuildEsc(); }
+
+// ---------- escalations (auto-seeded + tracked) ----------
+function autoSeverity(a){ if(a.health<40||a.highCases>=3) return 'Critical'; if(a.health<55||a.highCases>=1) return 'High'; if(a.health<70) return 'Medium'; return 'Low'; }
+function rebuildEsc(){
+  // candidates: at-risk or watch accounts with a real signal
+  STATE.escList = STATE.accounts.filter(a=> a.tier!=='healthy' && (a.highCases>0 || a.health<60 || (a.dclose<=90)))
+    .map(a=>{
+      const st = escState[a.id];
+      const sev = autoSeverity(a);
+      const issue = a.highCases>0 ? `${a.highCases} high/urgent case(s) open` :
+                    a.dclose<=90 ? `Renewal in ${a.dclose}d, health ${a.health}` :
+                    `Health ${a.health} — ${a.openCases} open cases`;
+      return {acctId:a.id, acct:a, sev, issue, status:(st&&st.status)||'Open', log:(st&&st.log)||[]};
+    })
+    .sort((x,y)=> (sevRank(y.sev)-sevRank(x.sev)) || (y.acct.riskARR-x.acct.riskARR));
+  const open = STATE.escList.filter(e=>e.status!=='Resolved').length;
+  $('#escBadge').textContent = open;
+}
+function sevRank(s){return {Critical:4,High:3,Medium:2,Low:1}[s]||0;}
+function setEscStatus(acctId,status){
+  const cur = escState[acctId]||{status:'Open',log:[]};
+  cur.status=status; cur.log=cur.log||[];
+  cur.log.push({t:new Date().toISOString(), note:'Status → '+status});
+  escState[acctId]=cur; LS.set('escState',escState); rebuildEsc();
+}
+function addEscNote(acctId,note){ if(!note) return; const cur=escState[acctId]||{status:'Open',log:[]}; cur.log=cur.log||[]; cur.log.push({t:new Date().toISOString(),note}); escState[acctId]=cur; LS.set('escState',escState); }
+
+// ---------- scope / hierarchy roll-ups ----------
+function accountsUnder(nodeId){
+  const node = STATE.nodeIndex[nodeId]; if(!node) return [];
+  const out=[]; (function walk(n){ (n.accounts||[]).forEach(a=>out.push(a)); Object.values(n.children||{}).forEach(walk); })(node);
+  return out;
+}
+function rollup(accts){
+  const r={arr:0,risk:0,cases:0,high:0,n:accts.length,renewals:0,red:0,amber:0,green:0,wsum:0,ltv:0};
+  accts.forEach(a=>{ r.arr+=a.renewalAmount; r.risk+=a.riskARR; r.cases+=a.openCases; r.high+=a.highCases; r.renewals+=a.opps.length; r.ltv+=a.ltv||0;
+    r.wsum+=a.health*a.renewalAmount; if(a.tier==='atrisk')r.red++; else if(a.tier==='watch')r.amber++; else r.green++; });
+  r.health = r.arr>0? Math.round(r.wsum/r.arr) : Math.round(accts.reduce((s,a)=>s+a.health,0)/(accts.length||1));
+  return r;
+}
+function crumbPath(nodeId){
+  const path=[]; let cur=STATE.nodeIndex[nodeId];
+  while(cur){ path.unshift(cur); cur = cur.managerId?STATE.nodeIndex[cur.managerId]:null; if(cur&&path.includes(cur))break; }
+  if(STATE.tree && path[0]!==STATE.tree) path.unshift(STATE.tree);
+  return path.filter(Boolean);
+}
+
+// ---------- rendering ----------
+function healthCell(h){ const c=h>=75?'var(--green)':h>=50?'var(--amber)':'var(--red)'; return `<span class="hs"><span class="bar"><i style="width:${h}%;background:${c}"></i></span><b style="color:${c}">${h}</b></span>`; }
+function tierPill(t){ return t==='healthy'?'<span class="pill p-green">Healthy</span>':t==='watch'?'<span class="pill p-amber">Watch</span>':'<span class="pill p-red">At risk</span>'; }
+function sevPill(s){ const m={Critical:'p-red',High:'p-red',Medium:'p-amber',Low:'p-gray'}; return `<span class="pill ${m[s]||'p-gray'}">${s}</span>`; }
+function statusPill(s){ const m={Open:'p-red','In Progress':'p-amber',Resolved:'p-green'}; return `<span class="pill ${m[s]||'p-gray'}">${s}</span>`; }
+
+function renderCrumb(){
+  const path = crumbPath(STATE.scope);
+  $('#crumb').innerHTML = path.map((n,i)=> i===path.length-1
+    ? `<span class="cur">${esc(n.name)}</span>`
+    : `<button onclick="setScope('${n.id}')">${esc(n.name)}</button><span class="sep">›</span>`).join('');
+  const node = STATE.nodeIndex[STATE.scope];
+  $('#scoperole').textContent = node && node.title ? node.title : '';
+}
+
+function setScope(id){ STATE.scope=id; route(); }
+function setTab(t){ STATE.tab=t; document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t)); route(); }
+
+function route(){
+  if(!STATE.tree) return;                                  // data not built yet (mid-reload)
+  if(!STATE.nodeIndex[STATE.scope]) STATE.scope='ROOT';    // stale scope guard
+  renderCrumb();
+  const accts = accountsUnder(STATE.scope);
+  const app=$('#app');
+  if(STATE.tab==='overview') app.innerHTML=viewOverview(accts);
+  else if(STATE.tab==='hierarchy') app.innerHTML=viewHierarchy();
+  else if(STATE.tab==='renewals') app.innerHTML=viewRenewals(accts);
+  else if(STATE.tab==='escalations') app.innerHTML=viewEsc(accts);
+  else if(STATE.tab==='worklist') app.innerHTML=viewWork(accts);
+  else if(STATE.tab==='model') app.innerHTML=viewModel(accts);
+  if(STATE.tab==='overview') drawOverviewCharts(accts);
+  $('#foot').innerHTML = `Scope: <b>${esc(STATE.nodeIndex[STATE.scope].name)}</b> · ${accts.length} accounts with an active renewal · Health scores are computed live from open Salesforce cases + renewal timing using the tunable model in the Health Model tab (owned by CS Ops). Lifetime value & products come from closed-won opportunities and line items; the sentiment index is derived from lifetime support-case signals (this org has no native CSAT field). Escalation status changes persist in your browser only — production would back this with a shared table.`;
+}
+
+// ---- Overview ----
+function viewOverview(accts){
+  const r=rollup(accts);
+  const kpis=[
+    ['Renewal ARR in scope',fmtMoney(r.arr),r.renewals+' open renewals'],
+    ['ARR at risk',fmtMoney(r.risk),Math.round(r.risk/(r.arr||1)*100)+'% of book, risk-weighted'],
+    ['Avg health (ARR-wtd)',r.health,r.red+' at-risk · '+r.amber+' watch · '+r.green+' healthy'],
+    ['Lifetime value in scope',fmtMoney(r.ltv),'closed-won, all time'],
+    ['Open escalations',STATE.escList.filter(e=>accts.includes(e.acct)&&e.status!=='Resolved').length,r.high+' high/urgent cases · '+r.cases+' open cases'],
+  ];
+  const topRisk=[...accts].sort((a,b)=>b.riskARR-a.riskARR).slice(0,8);
+  return `
+  <div class="kpis">${kpis.map(k=>`<div class="kpi${/at risk/i.test(k[0])?' accent':''}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${esc(k[2])}</div></div>`).join('')}</div>
+  <div class="grid2">
+    <div class="card"><h3>Renewal ARR by team <span class="hint">click a bar's team in Org Drill-down to scope</span></h3><div class="chartbox"><canvas id="cTeam"></canvas></div></div>
+    <div class="card"><h3>Book health distribution</h3><div class="chartbox"><canvas id="cHealth"></canvas></div>
+      <div class="legend"><span><i class="dot" style="background:var(--green)"></i>Healthy ≥75</span><span><i class="dot" style="background:var(--amber)"></i>Watch 50–74</span><span><i class="dot" style="background:var(--red)"></i>At risk &lt;50</span></div>
+    </div>
+  </div>
+  <div class="card"><h3>Top risk-weighted accounts <span class="hint">renewal ARR × risk — where attention protects the most revenue</span></h3>
+    <table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th>Sentiment</th><th>Health</th><th class="num">ARR at risk</th></tr></thead><tbody>
+    ${topRisk.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td>${sentPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td></tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+function drawOverviewCharts(accts){
+  Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}}); charts={};
+  // ARR by immediate child team of current scope (or by owner if leaf)
+  const node=STATE.nodeIndex[STATE.scope]; if(!node) return;
+  let groups=[];
+  const kids=Object.values(node.children||{});
+  if(kids.length){ groups=kids.map(k=>({label:shortName(k.name),arr:rollup(accountsUnder(k.id)).arr,risk:rollup(accountsUnder(k.id)).risk})); }
+  else { const byOwner={}; accts.forEach(a=>{ (byOwner[a.ownerName]=byOwner[a.ownerName]||{label:a.ownerName,arr:0,risk:0}); byOwner[a.ownerName].arr+=a.renewalAmount; byOwner[a.ownerName].risk+=a.riskARR;}); groups=Object.values(byOwner); }
+  groups.sort((a,b)=>b.arr-a.arr); groups=groups.slice(0,8);
+  const t=$('#cTeam'); if(t){ charts.team=new Chart(t,{type:'bar',data:{labels:groups.map(g=>g.label),datasets:[
+    {label:'Renewal ARR',data:groups.map(g=>Math.round(g.arr)),backgroundColor:'#0f0f10'},
+    {label:'ARR at risk',data:groups.map(g=>Math.round(g.risk)),backgroundColor:'#c8102e'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},usePointStyle:true,pointStyle:'rect'}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>fmtMoney(v)},grid:{color:'#eeeeec'}}}}}); }
+  const r=rollup(accts);
+  const h=$('#cHealth'); if(h){ charts.health=new Chart(h,{type:'doughnut',data:{labels:['Healthy','Watch','At risk'],datasets:[{data:[r.green,r.amber,r.red],backgroundColor:['#0f7a55','#e0a100','#c8102e'],borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false}}}}); }
+}
+function shortName(n){ return n.length>16?n.slice(0,15)+'…':n; }
+
+// ---- Hierarchy drill-down ----
+function viewHierarchy(){
+  const node=STATE.nodeIndex[STATE.scope];
+  const kids=Object.values(node.children||{}).map(k=>({node:k,r:rollup(accountsUnder(k.id))})).sort((a,b)=>b.r.arr-a.r.arr);
+  let html=`<div class="card"><h3>${esc(node.name)} <span class="hint">${esc(node.title||'')} — drill into a team, manager, or rep</span></h3>`;
+  if(kids.length){
+    html+=`<div class="treewrap">`+kids.map(k=>{
+      const r=k.r, isLeaf=Object.keys(k.node.children||{}).length===0;
+      return `<div class="node"><div class="nhead" onclick="setScope('${k.node.id}')">
+        <div><span class="nname">${esc(k.node.name)}</span> <span class="ntitle">${esc(k.node.title||'')}</span></div>
+        <div class="metric"><b>Renewal ARR</b>${fmtMoney(r.arr)}</div>
+        <div class="metric"><b>At risk</b><span style="color:var(--red)">${fmtMoney(r.risk)}</span></div>
+        <div class="metric"><b>Health</b>${healthCell(r.health)}</div>
+        <div class="metric"><b>${isLeaf?'Accounts':'Reports'}</b>${isLeaf?r.n:Object.keys(k.node.children).length}</div>
+      </div></div>`;
+    }).join('')+`</div>`;
+  }
+  // accounts owned directly at this node (leaf rep)
+  const direct=node.accounts||[];
+  if(direct.length){
+    html+=`<h3 style="margin-top:18px">Accounts owned here (${direct.length})</h3>`+accountTable([...direct].sort((a,b)=>b.riskARR-a.riskARR));
+  } else if(!kids.length){ html+=`<p class="mini">No sub-teams or accounts under this node in the current renewal book.</p>`; }
+  html+=`</div>`;
+  return html;
+}
+function accountTable(accts){
+  return `<table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th class="num">Cases</th><th>Sentiment</th><th>Health</th></tr></thead><tbody>
+  ${accts.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${sentPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+// ---- Renewals triage ----
+let renewSort={k:'riskARR',dir:-1};
+function viewRenewals(accts){
+  const rows=[...accts].sort((a,b)=> renewSort.dir*((a[renewSort.k]>b[renewSort.k])?1:(a[renewSort.k]<b[renewSort.k])?-1:0));
+  const sc=(k,l)=>`<th class="num" onclick="setRenewSort('${k}')">${l}${renewSort.k===k?(renewSort.dir<0?' ▼':' ▲'):''}</th>`;
+  return `<div class="card"><h3>Renewal & risk triage <span class="hint">${accts.length} accounts · prioritized by revenue exposure</span></h3>
+  <div class="searchbar"><input id="rsearch" placeholder="Filter accounts…" oninput="filterTable(this,'rtbl')"></div>
+  <table id="rtbl"><thead><tr><th onclick="setRenewSort('name')">Account</th><th>Owner</th><th>Stage</th>${sc('dclose','Days to close')}${sc('renewalAmount','Renewal ARR')}${sc('ltv','Lifetime $')}${sc('openCases','Open cases')}${sc('sentiment','Sentiment')}${sc('riskARR','ARR at risk')}<th>Health</th></tr></thead><tbody>
+  ${rows.map(a=>{const st=a.opps[0]?a.opps[0].stage:'';const late=a.dclose<=90&&EARLY.has(st);return `<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td>${esc(st)}${late?' <span class="pill p-red">behind</span>':''}</td><td class="num">${a.dclose>9000?'—':a.dclose}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${sentPill(a)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td><td>${healthCell(a.health)}</td></tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function setRenewSort(k){ if(renewSort.k===k)renewSort.dir*=-1; else {renewSort.k=k;renewSort.dir=(k==='name')?1:-1;} route(); }
+
+// ---- Escalations ----
+let escFilter='active';
+function viewEsc(accts){
+  const inScope = new Set(accts.map(a=>a.id));
+  let list = STATE.escList.filter(e=>inScope.has(e.acctId));
+  const crit=list.filter(e=>e.sev==='Critical'&&e.status!=='Resolved').length;
+  const open=list.filter(e=>e.status==='Open').length, prog=list.filter(e=>e.status==='In Progress').length, res=list.filter(e=>e.status==='Resolved').length;
+  if(escFilter==='active') list=list.filter(e=>e.status!=='Resolved');
+  else if(escFilter==='resolved') list=list.filter(e=>e.status==='Resolved');
+  return `<div class="card"><h3>Escalations tracker <span class="hint">auto-seeded from live risk signals · status persists locally</span></h3>
+  <div class="kpis" style="margin-bottom:14px">
+    <div class="kpi"><div class="l">Critical unresolved</div><div class="v" style="color:var(--red)">${crit}</div></div>
+    <div class="kpi"><div class="l">Open</div><div class="v">${open}</div></div>
+    <div class="kpi"><div class="l">In progress</div><div class="v">${prog}</div></div>
+    <div class="kpi"><div class="l">Resolved</div><div class="v" style="color:var(--green)">${res}</div></div>
+  </div>
+  <div class="searchbar"><select class="select" onchange="escFilter=this.value;route()">
+    <option value="active"${escFilter==='active'?' selected':''}>Open + in progress</option>
+    <option value="all"${escFilter==='all'?' selected':''}>All</option>
+    <option value="resolved"${escFilter==='resolved'?' selected':''}>Resolved only</option></select></div>
+  <table><thead><tr><th>Account</th><th>Issue</th><th>Severity</th><th>Owner</th><th>Status</th><th class="num">ARR at risk</th><th></th></tr></thead><tbody>
+  ${list.map(e=>`<tr><td onclick="openAcct('${e.acctId}')"><b>${esc(e.acct.name)}</b></td><td>${esc(e.issue)}</td><td>${sevPill(e.sev)}</td><td>${esc(e.acct.ownerName)}</td><td>${statusPill(e.status)}</td><td class="num">${fmtMoney(e.acct.riskARR)}</td><td class="row-actions">${e.status!=='In Progress'&&e.status!=='Resolved'?`<button class="btn" onclick="event.stopPropagation();setEscStatus('${e.acctId}','In Progress')">Start</button>`:''}${e.status!=='Resolved'?`<button class="btn primary" onclick="event.stopPropagation();setEscStatus('${e.acctId}','Resolved')">Resolve</button>`:`<button class="btn" onclick="event.stopPropagation();setEscStatus('${e.acctId}','Open')">Reopen</button>`}</td></tr>`).join('')}
+  </tbody></table>
+  ${list.length?'':'<p class="mini">Nothing here — no escalations match this scope/filter.</p>'}</div>`;
+}
+
+// ---- Worklist / Today ----
+function viewWork(accts){
+  const items=[];
+  accts.forEach(a=>{
+    const st=a.opps[0]?a.opps[0].stage:'';
+    if(a.dclose<=90 && EARLY.has(st)) items.push({p:1,a,label:`Renewal closes in ${a.dclose}d but still "${st}" — advance the deal`,tag:'Renewal at risk'});
+    if(a.highCases>0) items.push({p:2,a,label:`${a.highCases} high/urgent support case(s) open — coordinate resolution`,tag:'Support escalation'});
+    if(a.sentTier==='neg') items.push({p:2,a,label:`Strained sentiment (index ${a.sentiment}) from support history — proactively check in`,tag:'Sentiment risk'});
+    if(a.tier==='atrisk' && a.renewalAmount>1e6) items.push({p:3,a,label:`At-risk account with ${fmtMoney(a.renewalAmount)} renewal — build a save play`,tag:'Save play'});
+    if(a.dclose<=180 && a.dclose>90 && a.tier!=='healthy') items.push({p:4,a,label:`Renewal in ${a.dclose}d, health ${a.health} — start early engagement`,tag:'Get ahead'});
+  });
+  items.sort((x,y)=> x.p-y.p || y.a.riskARR-x.a.riskARR);
+  return `<div class="card"><h3>Prioritized worklist <span class="hint">${items.length} actions across scope · ranked by urgency then revenue</span></h3>
+  <table><thead><tr><th>Priority action</th><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th>Health</th></tr></thead><tbody>
+  ${items.slice(0,40).map(it=>`<tr onclick="openAcct('${it.a.id}')"><td><span class="pill ${it.p<=2?'p-red':it.p===3?'p-amber':'p-gray'}">${esc(it.tag)}</span> ${esc(it.label)}</td><td><b>${esc(it.a.name)}</b></td><td>${esc(it.a.ownerName)}</td><td class="num">${fmtMoney(it.a.renewalAmount)}</td><td>${healthCell(it.a.health)}</td></tr>`).join('')}
+  </tbody></table>${items.length?'':'<p class="mini">Clear queue — nothing urgent in this scope.</p>'}</div>`;
+}
+
+// ---- Health model settings ----
+function viewModel(accts){
+  const sl=(k,l,max)=>`<div class="slider"><label>${l}</label><input type="range" min="0" max="${max}" step="1" value="${WEIGHTS[k]}" oninput="setWeight('${k}',this.value,this)"><span id="w_${k}">${WEIGHTS[k]}</span></div>`;
+  const r=rollup(accts);
+  return `<div class="card"><h3>Health-score model <span class="hint">CS Ops owns this — adjust weights and the whole book re-scores instantly, no engineering ticket</span></h3>
+  <p class="mini">Every account starts at 100. These penalties subtract from it based on live Salesforce signals. This transparency is the point: the score is never a black box.</p>
+  ${sl('openCase','Per open case',5)}
+  ${sl('highSev','Per high/urgent case',15)}
+  ${sl('proxNear','Renewal ≤90 days',40)}
+  ${sl('proxMid','Renewal ≤180 days',30)}
+  ${sl('stageRisk','Near renewal, early stage',30)}
+  ${sl('engage','Stale engagement (no touch 90d+)',30)}
+  <div style="margin-top:14px" class="row-actions"><button class="btn primary" onclick="saveWeights()">Save model</button><button class="btn" onclick="resetWeights()">Reset defaults</button></div>
+  <p class="mini" style="margin-top:14px">Current scope re-scored: <b>${r.green}</b> healthy · <b>${r.amber}</b> watch · <b>${r.red}</b> at risk · avg <b>${r.health}</b>.</p>
+  <p class="mini" style="margin-top:10px;color:var(--muted)">Note: the customer <b>sentiment/satisfaction</b> index is computed separately from lifetime support-case signals (high/urgent share, escalation share, ticket volume, currently-open high-priority cases) and is not affected by these health weights.</p>
+  </div>`;
+}
+function setWeight(k,v,el){ WEIGHTS[k]=+v; document.getElementById('w_'+k).textContent=v; computeAll(); const p=el.closest('.card').querySelectorAll('.mini'); const r=rollup(accountsUnder(STATE.scope)); if(p.length) p[p.length-2].innerHTML=`Current scope re-scored: <b>${r.green}</b> healthy · <b>${r.amber}</b> watch · <b>${r.red}</b> at risk · avg <b>${r.health}</b>.`; }
+function saveWeights(){ LS.set('weights',WEIGHTS); toast('Model saved — applies every time you open this dashboard.'); }
+function resetWeights(){ WEIGHTS=Object.assign({},DEFAULT_WEIGHTS); LS.set('weights',WEIGHTS); computeAll(); route(); }
+
+// ---- Communications (logged Salesforce activities) — shown inside Account 360 ----
+async function loadAcctComms(id){
+  const box=$('#acctComms'); if(!box) return;
+  if(commsCache[id]){ box.innerHTML=commsCache[id]; return; }
+  try{
+    const [tasks,events]=await Promise.all([
+      soql(`SELECT Id,Subject,TaskSubtype,ActivityDate,CreatedDate,Owner.Name,Description FROM Task WHERE AccountId='${id}' ORDER BY CreatedDate DESC LIMIT 12`),
+      soql(`SELECT Id,Subject,EventSubtype,StartDateTime,Owner.Name,Description FROM Event WHERE AccountId='${id}' ORDER BY StartDateTime DESC LIMIT 6`)
+    ]);
+    let items=tasks.map(t=>({d:t.CreatedDate||t.ActivityDate,sub:t.TaskSubtype,subj:t.Subject,who:(t.Owner&&t.Owner.Name),desc:t.Description}))
+      .concat(events.map(e=>({d:e.StartDateTime,sub:'Meeting',subj:e.Subject,who:(e.Owner&&e.Owner.Name),desc:e.Description})));
+    items.sort((a,b)=> (a.d<b.d?1:a.d>b.d?-1:0)); items=items.slice(0,14);
+    let h;
+    if(!items.length){ h='<p class="mini">No communications recorded for this account.</p>'; }
+    else h=`<div class="tl">${items.map(it=>{const full=cleanComm(it.desc);const long=full.length>200;const short=long?full.slice(0,200)+'…':full;return `<div class="ev"><div class="t">${fmtDate(it.d)} · ${commPill(it.sub)} · ${esc(it.who||'')}</div><div><b>${esc(commSubject(it.subj))}</b></div>${full?`<div class="mini commtext"><span class="cs">${esc(short)}</span><span class="cf hidden">${esc(full)}</span>${long?` <a href="#" onclick="toggleComm(event,this)">more</a>`:''}</div>`:''}</div>`;}).join('')}</div>`;
+    commsCache[id]=h; box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div class="err">Couldn’t load communications — '+esc(e.message||e)+'</div>'; }
+}
+function toggleComm(ev,a){ ev.preventDefault(); const w=a.closest('.commtext'),cs=w.querySelector('.cs'),cf=w.querySelector('.cf'); const showFull=cf.classList.contains('hidden'); cf.classList.toggle('hidden',!showFull); cs.classList.toggle('hidden',showFull); a.textContent=showFull?'less':'more'; }
+
+// ---- Purchase history & products (closed-won line items) — shown inside Account 360 ----
+async function loadAcctIntel(id){
+  const dBox=$('#acctDeals'), pBox=$('#acctProducts');
+  if(intelCache[id]){ if(dBox)dBox.innerHTML=intelCache[id].deals; if(pBox)pBox.innerHTML=intelCache[id].prod; return; }
+  try{
+    const [deals,fams,skus]=await Promise.all([
+      soql(`SELECT Name,Amount,CloseDate,StageName FROM Opportunity WHERE IsWon=true AND AccountId='${id}' ORDER BY CloseDate DESC LIMIT 8`),
+      soql(`SELECT Product2.Family fam, SUM(TotalPrice) amt, SUM(Quantity) qty FROM OpportunityLineItem WHERE Opportunity.IsWon=true AND Opportunity.AccountId='${id}' GROUP BY Product2.Family ORDER BY SUM(TotalPrice) DESC LIMIT 12`),
+      soql(`SELECT Product2.Name n, SUM(TotalPrice) amt FROM OpportunityLineItem WHERE Opportunity.IsWon=true AND Opportunity.AccountId='${id}' GROUP BY Product2.Name ORDER BY SUM(TotalPrice) DESC LIMIT 8`)
+    ]);
+    const dealsHtml = deals.length
+      ? `<table><thead><tr><th>Deal</th><th>Stage</th><th class="num">Amount</th><th class="num">Closed</th></tr></thead><tbody>${deals.map(o=>`<tr style="cursor:default"><td>${esc(o.Name)}</td><td>${esc(o.StageName)}</td><td class="num">${fmtMoney(o.Amount)}</td><td class="num">${esc(o.CloseDate||'')}</td></tr>`).join('')}</tbody></table><p class="mini" style="margin-top:8px">Showing 8 most recent closed-won deals.</p>`
+      : '<p class="mini">No closed-won deals on record.</p>';
+    let prodHtml;
+    if(!fams.length){ prodHtml='<p class="mini">No product line items recorded for closed-won deals.</p>'; }
+    else{
+      const max=Math.max(...fams.map(f=>f.amt||0))||1;
+      prodHtml=`<div class="prodlist">${fams.map(f=>`<div class="prow"><div class="pn" title="${esc(prodName(f.fam))}">${esc(prodName(f.fam))}</div><div class="pbar"><i style="width:${Math.round((f.amt||0)/max*100)}%"></i></div><div class="pv">${fmtMoney(f.amt)}</div></div>`).join('')}</div>`;
+      if(skus.length) prodHtml+=`<p class="mini" style="margin-top:12px"><b>Top individual items purchased:</b><br>${skus.map(s=>esc(s.n)+' — '+fmtMoney(s.amt)).join('<br>')}</p>`;
+      prodHtml+=`<p class="mini" style="margin-top:8px;color:var(--muted)">Grouped by Salesforce Product2.Family across all closed-won line items.</p>`;
+    }
+    intelCache[id]={deals:dealsHtml,prod:prodHtml};
+    if(dBox)dBox.innerHTML=dealsHtml; if(pBox)pBox.innerHTML=prodHtml;
+  }catch(e){ if(dBox)dBox.innerHTML='<div class="err">Couldn’t load purchase history — '+esc(e.message||e)+'</div>'; if(pBox)pBox.innerHTML=''; }
+}
+
+// ---- Account 360 ----
+function openAcct(id){
+  const a=STATE.accounts.find(x=>x.id===id); if(!a) return;
+  const cur=escState[id];
+  const compRows=a.comps.length?a.comps.map(c=>`<div>${esc(c[0])}</div><div class="${c[1]<0?'neg':'pos'}">${c[1]}</div>`).join(''):'<div class="mini">No penalties — full health.</div>';
+  const opps=a.opps.slice().sort((x,y)=>(x.close>y.close?1:-1));
+  const resolvedRate = a.lifeCases>0 ? Math.round((a.lifeCases-a.openCases)/a.lifeCases*100) : null;
+  const sentColor = a.sentiment==null?'var(--muted)':a.sentTier==='pos'?'var(--green)':a.sentTier==='neu'?'var(--amber)':'var(--red)';
+  const sheet=$('#sheet');
+  sheet.innerHTML=`<div class="hd"><div><h2>${esc(a.name)}</h2><div class="mini">${esc(a.state||'')} · Owner ${esc(a.ownerName)}${a.ownerTitle?' ('+esc(a.ownerTitle)+')':''}</div></div><button class="x" onclick="closeSheet()">✕</button></div>
+  <div class="bd">
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi"><div class="l">Health</div><div class="v" style="color:${a.health>=75?'var(--green)':a.health>=50?'var(--amber)':'var(--red)'}">${a.health}</div><div class="d">${tierPill(a.tier)}</div></div>
+      <div class="kpi"><div class="l">Sentiment</div><div class="v" style="color:${sentColor}">${a.sentiment==null?'—':a.sentiment}</div><div class="d">${sentPill(a)}</div></div>
+      <div class="kpi"><div class="l">Lifetime value</div><div class="v">${fmtMoney(a.ltv)}</div><div class="d">${a.pastDeals} closed-won deals</div></div>
+      <div class="kpi"><div class="l">Renewal ARR</div><div class="v">${fmtMoney(a.renewalAmount)}</div><div class="d">${a.dclose>9000?'—':'closes in '+a.dclose+' days'}</div></div>
+      <div class="kpi"><div class="l">Open cases</div><div class="v">${a.openCases}</div><div class="d">${a.highCases} high/urgent</div></div>
+      <div class="kpi"><div class="l">Last activity</div><div class="v">${a.dsAct==null?'—':a.dsAct+'d'}</div><div class="d">${a.lastAct?('ago · '+esc(a.lastAct)):'none on record'}</div></div>
+    </div>
+
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Purchase history & lifetime value <span class="hint">all closed-won opportunities</span></h3>
+      <div class="comp" style="grid-template-columns:1fr auto;margin-bottom:12px">
+        <div>Lifetime value (closed-won)</div><div class="pos">${fmtFull(a.ltv)}</div>
+        <div>Closed-won deals</div><div><b>${a.pastDeals}</b></div>
+        <div>First purchase</div><div><b>${a.firstPurchase?esc(a.firstPurchase):'—'}</b></div>
+        <div>Most recent purchase</div><div><b>${a.lastPurchase?esc(a.lastPurchase):'—'}</b></div>
+      </div>
+      <div id="acctDeals"><div class="mini">Loading recent deals…</div></div>
+    </div>
+
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Products purchased <span class="hint">by spend, from closed-won line items</span></h3>
+      <div id="acctProducts"><div class="mini">Loading products…</div></div>
+    </div>
+
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Customer sentiment & satisfaction <span class="hint">derived from lifetime support-case signals</span></h3>
+      ${a.sentiment==null
+        ? '<p class="mini">No support-case history on record for this account — no sentiment signal to derive.</p>'
+        : `<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px"><div style="font-size:34px;font-weight:800;color:${sentColor};font-variant-numeric:tabular-nums">${a.sentiment}</div><div>${sentPill(a)}<div class="mini" style="margin-top:4px">0 = heavy friction · 100 = smooth</div></div></div>
+        <div class="comp" style="grid-template-columns:1fr auto">
+          <div>Lifetime support cases</div><div><b>${a.lifeCases.toLocaleString()}</b></div>
+          <div>High / urgent tickets</div><div class="${a.lifeHigh>0?'neg':''}">${a.lifeHigh.toLocaleString()} (${Math.round(a.lifeHigh/a.lifeCases*100)}%)</div>
+          <div>Escalated tickets</div><div class="${a.lifeEsc>0?'neg':''}">${a.lifeEsc.toLocaleString()} (${Math.round(a.lifeEsc/a.lifeCases*100)}%)</div>
+          <div>Currently open high/urgent</div><div class="${a.highCases>0?'neg':''}">${a.highCases}</div>
+          <div>Resolved rate</div><div class="${resolvedRate!=null&&resolvedRate>=90?'pos':''}">${resolvedRate==null?'—':resolvedRate+'%'}</div>
+        </div>`}
+      <p class="mini" style="margin-top:10px;color:var(--muted)">This org has no native CSAT/NPS field, so satisfaction is inferred transparently from support history. Swap in survey/NPS data here if it becomes available in Salesforce.</p>
+    </div>
+
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Health breakdown <span class="hint">why this number</span></h3><div class="comp"><div><b>Base</b></div><div class="pos">100</div>${compRows}<div style="border-top:1px solid var(--line);padding-top:6px"><b>Score</b></div><div style="border-top:1px solid var(--line);padding-top:6px"><b>${a.health}</b></div></div></div>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Open renewals</h3><table><tbody>${opps.map(o=>`<tr style="cursor:default"><td>${esc(o.name)}</td><td>${esc(o.stage)}</td><td class="num">${fmtMoney(o.amount)}</td><td class="num">${esc(o.close)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Communications <span class="hint">recent logged emails, calls & meetings</span></h3><div id="acctComms"><div class="mini">Loading communications…</div></div></div>
+    <div class="card" style="box-shadow:none;margin:0"><h3>Escalation</h3>
+      <div class="row-actions" style="margin-bottom:10px">Status: ${statusPill((cur&&cur.status)||'—')} ${a.tier!=='healthy'?`<button class="btn" onclick="setEscStatus('${a.id}','In Progress');openAcct('${a.id}')">Start</button><button class="btn primary" onclick="setEscStatus('${a.id}','Resolved');openAcct('${a.id}')">Resolve</button>`:''}</div>
+      <textarea class="notes-in" id="noteIn" placeholder="Add an update note…"></textarea>
+      <div class="row-actions" style="margin-top:6px"><button class="btn" onclick="addEscNote('${a.id}',document.getElementById('noteIn').value);openAcct('${a.id}')">Add note</button></div>
+      <div class="tl" style="margin-top:12px">${(cur&&cur.log&&cur.log.length)?cur.log.slice().reverse().map(l=>`<div class="ev"><div class="t">${new Date(l.t).toLocaleString()}</div><div>${esc(l.note)}</div></div>`).join(''):'<span class="mini">No updates logged yet.</span>'}</div>
+    </div>
+  </div>`;
+  $('#overlay').classList.add('show');
+  loadAcctComms(a.id);
+  loadAcctIntel(a.id);
+}
+function closeSheet(){ $('#overlay').classList.remove('show'); }
+$('#overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') closeSheet(); });
+
+// ---- misc ----
+function filterTable(input,tblId){ const q=input.value.toLowerCase(); document.querySelectorAll('#'+tblId+' tbody tr').forEach(tr=>{ tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none'; }); }
+function toast(m){ const d=document.createElement('div'); d.className='err'; d.style.position='fixed'; d.style.bottom='20px'; d.style.left='50%'; d.style.transform='translateX(-50%)'; d.style.background='var(--greenbg)'; d.style.color='var(--green)'; d.style.zIndex=99; d.textContent=m; document.body.appendChild(d); setTimeout(()=>d.remove(),2600); }
+function renderError(m){ $('#app').innerHTML=`<div class="err">${esc(m)}</div><p class="mini">This is usually a momentary connection hiccup. <button class="btn" onclick="boot()">Retry now</button> &nbsp;or use Reload in the header. If it persists, the Salesforce connector may need reconnecting.</p>`; }
+function renderConnErr(){
+  $('#app').innerHTML=`<div class="err">This dashboard can’t reach the Axon Salesforce connector in your Cowork.</div>
+  <div class="card" style="margin-top:8px"><h3>How to fix</h3>
+  <p class="mini" style="line-height:1.7">This dashboard reads live data through the <b>Axon Salesforce</b> connector, which each person authorizes in their own Cowork. If you opened a shared link and see this message, it almost always means Salesforce isn’t connected on your side yet.</p>
+  <p class="mini" style="line-height:1.7">1. Open Cowork <b>Settings → Connectors</b> (or Capabilities).<br>
+  2. Connect <b>Axon Salesforce</b> and sign in with your Axon credentials.<br>
+  3. Come back here and press <button class="btn" onclick="boot()">Retry</button> or Reload in the header.</p>
+  <p class="mini" style="color:var(--muted);margin-top:8px">Note: the connector is tied to each user’s own Salesforce login and permissions, so you’ll only see the accounts you’re entitled to. If Salesforce is already connected and this persists, ask your Cowork admin to confirm the Salesforce connector is enabled for your account.</p>
+  </div>`;
+}
+function boot(){ $('#app').innerHTML='<div class="loading"><div class="spinner"></div><div>Querying Axon Salesforce — renewals, org hierarchy, purchase history & support signals…</div></div>'; waitForBridge().then(load).catch(e=>{ console.error(e); const m=(e&&e.message)||String(e); if(/allowlist|not in this artifact/i.test(m)) renderConnErr(); else renderError('Could not load Salesforce data — '+m+'.'); }); }
+window.boot=boot;
+
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+window.setScope=setScope; window.openAcct=openAcct; window.closeSheet=closeSheet; window.setEscStatus=(i,s)=>{setEscStatus(i,s);route();}; window.addEscNote=addEscNote; window.setRenewSort=setRenewSort; window.setWeight=setWeight; window.saveWeights=saveWeights; window.resetWeights=resetWeights; window.filterTable=filterTable; window.toggleComm=toggleComm;
+
+boot();
+</script>
+</body>
+</html>
