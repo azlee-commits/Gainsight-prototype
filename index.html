@@ -3,7 +3,7 @@
 {
   "name": "Axon Cs Command Center",
   "schemaVersion": 1,
-  "description": "Axon Customer Success Command Center — a live, Gainsight-lite dashboard on Axon Salesforce. Pulls the open renewal book (18-month window), builds the exec→team→CSM→account org hierarchy from the manager chain, and computes transparent, tunable health scores from live open cases, renewal timing, and last-activity engagement. Account 360 now includes full purchase history & lifetime value, product families and top items purchased (closed-won line items), and a derived customer sentiment/satisfaction index from lifetime support-case signals. Tabs: Command Center overview, Org Drill-down, Renewals triage, Escalations tracker (status persists locally), My Worklist, and a CS-Ops-owned Health Model editor. Axon-branded styling.",
+  "description": "Axon Customer Success Command Center — a live, Gainsight-lite dashboard on Axon Salesforce. Left-sidebar navigation with a welcoming Home page and section tabs. Pulls the open renewal book (18-month window), builds the exec→team→CSM→account org hierarchy, and computes transparent, tunable health scores. Account 360 includes purchase history & lifetime value, products purchased, a derived sentiment index, a placeholder CSAT rating, and communications. Includes a Success Plans engine that auto-generates onboarding + risk-aware plans for new-logo accounts (first purchase within 12 months) and lets CSMs build customized, editable plans for any account. Health-model editor owned by CS Ops. Axon-branded styling.",
   "mcpTools": [
     "mcp__ea67da7f-8cd3-49fa-ab02-2f7ec8fda78f__run_soql_query"
   ],
@@ -17,9 +17,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Axon CS Command Center</title>
+<!-- Gainsight-parity capabilities: CTAs, Journeys, Renewal Readiness, View-as-CSM -->
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <style>
-/* Axon brand system: black + white + Axon Yellow, flat/editorial, high-contrast */
 :root{
   color-scheme: light;
   --bg:#ffffff; --page:#f2f2f0; --panel:#ffffff; --ink:#111112; --muted:#6a6a6a; --line:#e2e2df; --line2:#0f0f10;
@@ -33,9 +34,8 @@ body{margin:0;background:var(--page);color:var(--ink);
   -webkit-font-smoothing:antialiased}
 a{color:var(--ink);text-decoration:none}
 .up{text-transform:uppercase;letter-spacing:.08em}
-.wrap{max-width:1320px;margin:0 auto;padding:0 0 64px}
 
-/* Masthead — black bar, AXON wordmark, yellow rule */
+/* Masthead */
 header.top{background:var(--black);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;
   flex-wrap:wrap;padding:16px 24px;border-bottom:3px solid var(--yellow)}
 .brand{display:flex;align-items:center;gap:16px}
@@ -44,6 +44,22 @@ header.top{background:var(--black);color:#fff;display:flex;align-items:center;ju
 .brand h1{font-size:14px;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:.10em}
 .brand .sub{color:#9c9c9e;font-size:11px;margin-top:3px;letter-spacing:.03em}
 #asof{color:#a6a6a8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+
+/* Shell = sidebar + main */
+.shell{display:flex;align-items:stretch;max-width:1460px;margin:0 auto}
+.side{width:216px;flex:0 0 216px;background:var(--black);align-self:stretch;padding:14px 0 40px;position:sticky;top:0;height:100vh;overflow:auto}
+nav.tabs{display:flex;flex-direction:column;gap:2px}
+nav.tabs button{border:none;border-left:3px solid transparent;background:none;color:#c7c7ca;text-align:left;
+  padding:11px 20px;font:inherit;font-weight:700;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;transition:background .12s,color .12s}
+nav.tabs button:hover{background:#1b1b1d;color:#fff}
+nav.tabs button.active{background:#1b1b1d;color:#fff;border-left-color:var(--yellow)}
+nav.tabs .sec{color:#6f6f73;font-size:10px;font-weight:800;letter-spacing:.12em;padding:16px 20px 6px}
+nav.tabs button .b{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;
+  background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:999px}
+nav.tabs button.active .b{background:var(--yellow);color:var(--yellow-ink)}
+.side .sfoot{color:#6f6f73;font-size:10px;letter-spacing:.04em;padding:20px 20px 0;line-height:1.6}
+.main{flex:1;min-width:0}
 .inner{padding:20px 24px 0}
 
 .scopebar{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);
@@ -55,17 +71,7 @@ header.top{background:var(--black);color:#fff;display:flex;align-items:center;ju
 .crumb .cur{color:var(--ink);font-weight:800}
 .scopebar .role{margin-left:auto;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
 
-nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
-nav.tabs button{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:8px 17px;cursor:pointer;
-  font:inherit;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;
-  transition:background .12s,color .12s,border-color .12s;display:inline-flex;align-items:center}
-nav.tabs button:hover{color:var(--ink);border-color:#c9c9c5;background:#fbfbf9}
-nav.tabs button.active{background:var(--black);color:#fff;border-color:var(--black);box-shadow:inset 0 0 0 2px var(--black),0 0 0 2px var(--yellow)}
-nav.tabs button .b{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;margin-left:7px;
-  background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:999px}
-nav.tabs button.active .b{background:var(--yellow);color:var(--yellow-ink)}
-
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;margin-bottom:18px;background:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;margin-bottom:18px;background:var(--line)}
 .kpi{background:var(--panel);padding:15px 17px;position:relative}
 .kpi::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:var(--black)}
 .kpi.accent::before{background:var(--yellow)}
@@ -99,9 +105,10 @@ tbody tr:hover{background:#fbfbf8}
 .btn:hover{background:var(--ink);color:#fff}
 .btn.primary{background:var(--yellow);color:var(--yellow-ink);border-color:var(--yellow)}
 .btn.primary:hover{background:var(--yellow-d);color:var(--yellow-ink)}
+.btn.sm{padding:4px 9px;font-size:10px}
 .overlay{position:fixed;inset:0;background:rgba(15,15,16,.55);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow:auto}
 .overlay.show{display:flex}
-.sheet{background:var(--panel);max-width:780px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;border-top:3px solid var(--yellow)}
+.sheet{background:var(--panel);max-width:820px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;border-top:3px solid var(--yellow)}
 .sheet .hd{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .sheet .hd h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.01em}
 .sheet .bd{padding:22px}
@@ -136,11 +143,10 @@ tbody tr:hover{background:#fbfbf8}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:12px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .dot{width:9px;height:9px;display:inline-block}
-.foot{color:var(--muted);font-size:11px;margin-top:24px;line-height:1.7;border-top:1px solid var(--line);padding-top:14px}
+.foot{color:var(--muted);font-size:11px;margin-top:24px;line-height:1.7;border-top:1px solid var(--line);padding-top:14px;padding-bottom:30px}
 .searchbar{margin:0 0 14px}
 .searchbar input{width:100%;max-width:360px;border:1px solid var(--line2);padding:8px 12px;font:inherit;border-radius:2px}
 .notes-in{width:100%;border:1px solid var(--line2);padding:8px 10px;font:inherit;resize:vertical;border-radius:2px}
-/* product spend list */
 .prodlist{display:flex;flex-direction:column;gap:7px}
 .prow{display:grid;grid-template-columns:180px 1fr 80px;gap:10px;align-items:center;font-size:12.5px}
 .prow .pn{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -148,44 +154,87 @@ tbody tr:hover{background:#fbfbf8}
 .prow .pbar i{display:block;height:100%;background:var(--black)}
 .prow .pv{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
 @media(max-width:560px){.prow{grid-template-columns:120px 1fr 66px}}
+
+/* Home */
+.hero{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--yellow);padding:28px 30px;margin:20px 0 18px}
+.hero h2{margin:0 0 8px;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.hero p{margin:0;color:#3f3f42;max-width:760px;font-size:14.5px;line-height:1.65}
+.hero .eyebrow{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+.features{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.feature{background:var(--panel);border:1px solid var(--line);padding:16px 17px;cursor:pointer;transition:border-color .12s,transform .06s;border-top:3px solid var(--black)}
+.feature:hover{border-color:var(--line2);border-top-color:var(--yellow);transform:translateY(-1px)}
+.feature h4{margin:0 0 6px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.feature p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.55}
+.feature .go{margin-top:10px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.feature:hover .go{color:var(--ink)}
+
+/* CSAT gauge */
+.csat-wrap{display:flex;align-items:center;gap:14px}
+.csat-num{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.csat-face{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+
+/* Success plans */
+.milestone{display:grid;grid-template-columns:26px 1fr 150px 90px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.milestone:last-child{border-bottom:none}
+.milestone input[type=checkbox]{width:17px;height:17px;accent-color:var(--green);cursor:pointer}
+.milestone input[type=text]{width:100%;border:1px solid transparent;background:none;font:inherit;padding:4px 6px;border-radius:2px}
+.milestone input[type=text]:hover,.milestone input[type=text]:focus{border-color:var(--line);background:#fff;outline:none}
+.milestone input[type=date]{border:1px solid var(--line);background:#fff;font:inherit;padding:4px 6px;border-radius:2px;font-size:12px}
+.milestone.done input[type=text]{text-decoration:line-through;color:var(--muted)}
+.progress{height:9px;background:#eeeeec;overflow:hidden;border-radius:2px}
+.progress i{display:block;height:100%;background:var(--green)}
+.obj-in{width:100%;border:1px solid var(--line2);padding:8px 10px;font:inherit;resize:vertical;border-radius:2px;min-height:70px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <div class="logo">AX<b>O</b>N</div>
-      <div>
-        <h1>Customer Success Command Center</h1>
-        <div class="sub">Live Salesforce renewal intelligence · Protect Life</div>
+<header class="top">
+  <div class="brand">
+    <div class="logo">AX<b>O</b>N</div>
+    <div>
+      <h1>Customer Success Command Center</h1>
+      <div class="sub">Live Salesforce renewal intelligence · Protect Life</div>
+    </div>
+  </div>
+  <div id="asof"></div>
+</header>
+
+<div class="shell">
+  <aside class="side">
+    <nav class="tabs" id="tabs">
+      <button data-tab="home" class="active">Home</button>
+      <div class="sec">Portfolio</div>
+      <button data-tab="overview">Command Center</button>
+      <button data-tab="hierarchy">Org Drill-down</button>
+      <button data-tab="renewals">Renewals</button>
+      <div class="sec">Act</div>
+      <button data-tab="ctas">CTAs <span class="b" id="ctaBadge">0</span></button>
+      <button data-tab="escalations">Escalations <span class="b" id="escBadge">0</span></button>
+      <button data-tab="plans">Success Plans</button>
+      <button data-tab="journeys">Journeys</button>
+      <button data-tab="worklist">My Worklist</button>
+      <div class="sec">Configure</div>
+      <button data-tab="model">Health Model</button>
+    </nav>
+    <div class="sfoot">Data live from Axon Salesforce.<br>Health, sentiment &amp; CSAT computed client-side.</div>
+  </aside>
+
+  <div class="main">
+    <div class="inner">
+    <div class="scopebar" id="scopebar">
+      <div class="crumb" id="crumb"></div>
+      <div class="viewas" id="viewas" style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700"></div>
+      <div class="role" id="scoperole"></div>
+    </div>
+
+    <div id="app">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>Querying Axon Salesforce — renewals, org hierarchy, purchase history &amp; support signals…</div>
       </div>
     </div>
-    <div id="asof"></div>
-  </header>
 
-  <div class="inner">
-  <div class="scopebar">
-    <div class="crumb" id="crumb"></div>
-    <div class="role" id="scoperole"></div>
-  </div>
-
-  <nav class="tabs" id="tabs">
-    <button data-tab="overview" class="active">Command Center</button>
-    <button data-tab="hierarchy">Org Drill-down</button>
-    <button data-tab="renewals">Renewals</button>
-    <button data-tab="escalations">Escalations <span class="b" id="escBadge">0</span></button>
-    <button data-tab="worklist">My Worklist</button>
-    <button data-tab="model">Health Model</button>
-  </nav>
-
-  <div id="app">
-    <div class="loading">
-      <div class="spinner"></div>
-      <div>Querying Axon Salesforce — renewals, org hierarchy, purchase history & support signals…</div>
+    <div class="foot" id="foot"></div>
     </div>
-  </div>
-
-  <div class="foot" id="foot"></div>
   </div>
 </div>
 
@@ -202,23 +251,31 @@ const fmtDate = d => d?new Date(d).toLocaleDateString(undefined,{month:'short',d
 function commPill(sub){ const m={Email:['Email','p-gray'],Call:['Call','p-amber'],ListEmail:['Bulk email','p-gray'],Task:['Note','p-gray'],Meeting:['Meeting','p-green'],Event:['Meeting','p-green']}; const x=m[sub]||[sub||'Activity','p-gray']; return `<span class="pill ${x[1]}">${x[0]}</span>`; }
 function commSubject(s){ s=(s||'').replace(/^Email:\s*/i,''); return s.trim()||'(no subject)'; }
 function cleanComm(d){ if(!d) return ''; let s=String(d); const bi=s.indexOf('Body:'); if(bi>=0 && bi<500) s=s.slice(bi+5); s=s.replace(/thread::[\s\S]*$/,'').replace(/---+\s*Original Message\s*---+[\s\S]*$/i,''); return s.replace(/\s+/g,' ').trim(); }
-// Friendly labels for the few Product2.Family values we can name with confidence;
-// everything else is shown as the raw Salesforce family value (title-cased) so nothing is misrepresented.
 const PRODMAP={SAAS:'SaaS / Software (Evidence.com)',Cart:'Cartridges',Training:'Training',INTERVIEW:'Axon Interview','FLEX 2':'Flex 2',X26:'X26',COMMANDER:'Commander'};
 function prodName(f){ if(f==null||f==='') return 'Uncategorized'; if(PRODMAP[f]) return PRODMAP[f]; return String(f).toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
+function daysSince(d){ if(!d) return null; return Math.round((new Date()-new Date(d))/86400000); }
 
-// ---------- persisted CS-ops settings ----------
+// ---------- persisted settings ----------
 const LS = {
   get(k,d){try{const v=localStorage.getItem('axoncs_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('axoncs_'+k,JSON.stringify(v))}catch(e){}}
 };
 const DEFAULT_WEIGHTS={openCase:2,highSev:9,proxNear:22,proxMid:10,stageRisk:12,engage:16};
 let WEIGHTS = Object.assign({}, DEFAULT_WEIGHTS, LS.get('weights',{}));
-let escState = LS.get('escState',{});     // acctId -> {status, log:[{t,note}]}
+let escState = LS.get('escState',{});     // acctId -> {status, log:[]}
+let csat = LS.get('csat',{});             // acctId -> number 0-100 (manual override)
+let plans = LS.get('plans',{});           // acctId -> plan object
+function savePlans(){ LS.set('plans',plans); }
+let ctas = LS.get('ctas',[]);             // Calls to Action (action items for CSMs)
+function saveCtas(){ LS.set('ctas',ctas); }
+let journeyState = LS.get('journeyState',{}); // {journeyId:{acctId:status}}
+function saveJourneys(){ LS.set('journeyState',journeyState); }
+let journeyOpen = LS.get('journeyOpen','welcome');
+let ownerFilter = '';                     // "View as CSM" auto-filter (owner name), session only
 
 // ---------- data call ----------
 function bridgeReady(){ return !!(window.cowork && typeof window.cowork.callMcpTool==='function'); }
-async function waitForBridge(ms=25000){ const s=Date.now(); while(!bridgeReady()){ if(Date.now()-s>ms) throw new Error('the data connection isn’t ready'); await new Promise(r=>setTimeout(r,150)); } }
+async function waitForBridge(ms=15000){ const s=Date.now(); while(!bridgeReady()){ if(Date.now()-s>ms) throw new Error('BRIDGE_NOT_READY'); await new Promise(r=>setTimeout(r,200)); } }
 async function soql(q,retry=2){
   if(!bridgeReady()) await waitForBridge();
   try{
@@ -229,18 +286,18 @@ async function soql(q,retry=2){
     return (data && data.records) || [];
   }catch(e){
     const msg=(e&&e.message)||String(e);
-    if(/allowlist|not in this artifact/i.test(msg)) throw e;   // connector-identity issue — don't retry, surface immediately
-    if(retry>0){ await new Promise(r=>setTimeout(r,1500)); return soql(q,retry-1); }  // transient timeout / bridge hiccup
+    if(/allowlist|not in this artifact/i.test(msg)) throw e;
+    if(retry>0){ await new Promise(r=>setTimeout(r,1500)); return soql(q,retry-1); }
     throw e;
   }
 }
 function sfDate(d){return d.toISOString().slice(0,10);}
 
 // ---------- state ----------
-let STATE = { accounts:[], users:{}, tree:null, nodeIndex:{}, scope:'ROOT', tab:'overview', bookCommsByScope:{} };
+let STATE = { accounts:[], users:{}, tree:null, nodeIndex:{}, scope:'ROOT', tab:'home' };
 let charts = {};
-let commsCache = {};   // per-account communications
-let intelCache = {};   // per-account purchase history + products
+let commsCache = {};
+let intelCache = {};
 
 // ---------- load pipeline ----------
 async function load(){
@@ -255,7 +312,6 @@ async function load(){
   const opps = await soql(q1);
   if(!opps.length){ renderError('No open renewal opportunities returned in the 18-month window.'); return; }
 
-  // aggregate opps -> accounts
   const acctMap = {};
   const ownerIds = new Set();
   opps.forEach(o=>{
@@ -267,7 +323,6 @@ async function load(){
       ownerName:(o.Owner&&o.Owner.Name)||'', ownerTitle:(o.Owner&&o.Owner.Title)||'',
       renewalAmount:0, opps:[], nextClose:null, openCases:0, highCases:0, byPri:{},
       lastAct:(o.Account&&o.Account.LastActivityDate)||null,
-      // new enrichment fields (filled by batch queries below)
       ltv:0, pastDeals:0, firstPurchase:null, lastPurchase:null,
       lifeCases:0, lifeHigh:0, lifeEsc:0, sentiment:null, sentTier:'none'
     };}
@@ -277,15 +332,12 @@ async function load(){
   });
   const accounts = Object.values(acctMap);
   const acctIds = accounts.map(a=>a.id);
-
-  // round 2: cases + org chain + purchase history + lifetime support sentiment.
   const idList = a => a.map(x=>`'${x}'`).join(',');
+
   const q3 = `SELECT AccountId, Priority, COUNT(Id) cnt FROM Case
     WHERE AccountId IN (${idList(acctIds)}) AND IsClosed=false GROUP BY AccountId, Priority`;
-  // lifetime closed-won purchase history per account
   const qDeals = `SELECT AccountId, COUNT(Id) c, SUM(Amount) s, MIN(CloseDate) mn, MAX(CloseDate) mx
     FROM Opportunity WHERE IsWon=true AND AccountId IN (${idList(acctIds)}) GROUP BY AccountId`;
-  // lifetime support-case signals for sentiment/satisfaction
   const qSent = `SELECT AccountId, Priority, IsEscalated, COUNT(Id) c
     FROM Case WHERE AccountId IN (${idList(acctIds)}) GROUP BY AccountId, Priority, IsEscalated`;
   async function fetchOrgChain(seedIds){
@@ -303,39 +355,21 @@ async function load(){
     fetchOrgChain([...ownerIds]), soql(q3), soql(qDeals), soql(qSent)
   ]);
 
-  // cases -> accounts (open)
   cases.forEach(c=>{
     const a = acctMap[c.AccountId]; if(!a) return;
     const p = c.Priority||'None'; const n = c.cnt||0;
     a.byPri[p] = (a.byPri[p]||0)+n; a.openCases += n;
     if(p==='High'||p==='Urgent'||p==='Critical') a.highCases += n;
   });
-
-  // purchase history -> accounts
-  dealAgg.forEach(r=>{
-    const a=acctMap[r.AccountId]; if(!a) return;
-    a.ltv=r.s||0; a.pastDeals=r.c||0; a.firstPurchase=r.mn||null; a.lastPurchase=r.mx||null;
-  });
-
-  // lifetime support signals -> accounts
-  sentAgg.forEach(r=>{
-    const a=acctMap[r.AccountId]; if(!a) return;
-    const n=r.c||0; a.lifeCases+=n;
-    if(r.IsEscalated) a.lifeEsc+=n;
-    if(r.Priority==='High'||r.Priority==='Urgent'||r.Priority==='Critical') a.lifeHigh+=n;
-  });
+  dealAgg.forEach(r=>{ const a=acctMap[r.AccountId]; if(!a) return; a.ltv=r.s||0; a.pastDeals=r.c||0; a.firstPurchase=r.mn||null; a.lastPurchase=r.mx||null; });
+  sentAgg.forEach(r=>{ const a=acctMap[r.AccountId]; if(!a) return; const n=r.c||0; a.lifeCases+=n; if(r.IsEscalated) a.lifeEsc+=n; if(r.Priority==='High'||r.Priority==='Urgent'||r.Priority==='Critical') a.lifeHigh+=n; });
   accounts.forEach(computeSentiment);
 
-  // users -> node index (flat records: Id, Name, Title, ManagerId)
   const nodes = {};
   Object.values(userMap).forEach(u=>{ nodes[u.Id]={id:u.Id,name:u.Name,title:u.Title||'',managerId:u.ManagerId||null,children:{},accounts:[]}; });
-  // attach accounts to owner nodes
   accounts.forEach(a=>{ const o=nodes[a.ownerId]; if(o) o.accounts.push(a); });
-  // build children links
-  Object.values(nodes).forEach(n=>{ if(n.managerId && nodes[n.managerId]) nodes[n.managerId].children[n.id]=nodes[n.id]; });
-  // roots = nodes with no manager in set
+  Object.values(nodes).forEach(n=>{ if(n.managerId && n.managerId!==n.id && nodes[n.managerId]) nodes[n.managerId].children[n.id]=nodes[n.id]; });
   const roots = Object.values(nodes).filter(n=>!n.managerId || !nodes[n.managerId]);
-  // synthetic ROOT
   const root = {id:'ROOT', name:'Axon Customer Success', title:'All teams', children:{}, accounts:[], synthetic:true};
   roots.forEach(r=> root.children[r.id]=r);
 
@@ -345,18 +379,16 @@ async function load(){
   route();
 }
 
-// ---------- sentiment / satisfaction (derived from lifetime support signals) ----------
-// Salesforce in this org has no native CSAT/NPS field, so we derive a transparent
-// sentiment index from the customer's lifetime support-case history.
+// ---------- sentiment ----------
 function computeSentiment(a){
   const total=a.lifeCases||0;
   if(total===0){ a.sentiment=null; a.sentTier='none'; return; }
   const highRate=(a.lifeHigh||0)/total, escRate=(a.lifeEsc||0)/total;
   let pen=0;
-  pen += Math.min(highRate*100*0.45, 35);      // share of high/urgent tickets
-  pen += Math.min(escRate*100*0.90, 30);        // share of escalated tickets
-  pen += Math.min(total/250*15, 15);            // sheer support burden
-  pen += Math.min((a.highCases||0)*4, 20);      // currently-open high/urgent
+  pen += Math.min(highRate*100*0.45, 35);
+  pen += Math.min(escRate*100*0.90, 30);
+  pen += Math.min(total/250*15, 15);
+  pen += Math.min((a.highCases||0)*4, 20);
   const s=Math.max(0,Math.min(100,Math.round(100-pen)));
   a.sentiment=s; a.sentTier = s>=70?'pos':s>=45?'neu':'neg';
 }
@@ -367,7 +399,22 @@ function sentPill(a){
   return `<span class="pill ${cls}">${lbl} · ${a.sentiment}</span>`;
 }
 
-// ---------- health scoring (transparent, tunable) ----------
+// ---------- CSAT (placeholder — swap in survey data later) ----------
+// No native CSAT/survey object exists in this org yet. Until surveys are wired up,
+// CSAT shows a placeholder: a manual value if a CSM has set one, otherwise a
+// derived stand-in from the sentiment signal. Clearly flagged as a placeholder.
+function csatVal(a){
+  if(csat[a.id]!=null) return {v:csat[a.id], src:'manual'};
+  if(a.sentiment!=null) return {v:a.sentiment, src:'placeholder'};
+  return {v:null, src:'none'};
+}
+function setCsat(id,v){ if(v===''||v==null){ delete csat[id]; } else { csat[id]=Math.max(0,Math.min(100,Math.round(+v))); } LS.set('csat',csat); refreshCsat(); }
+function refreshCsat(){ STATE.accounts.forEach(a=>{ a.csat=csatVal(a).v; }); }
+function csatFace(v){ return v>=80?'Very satisfied':v>=60?'Satisfied':v>=40?'Neutral':v>=20?'Dissatisfied':'At risk'; }
+function csatColor(v){ return v==null?'var(--muted)':v>=75?'var(--green)':v>=50?'var(--amber)':'var(--red)'; }
+function csatPill(a){ const c=csatVal(a); if(c.v==null) return '<span class="pill p-gray">CSAT —</span>'; const cls=c.v>=75?'p-green':c.v>=50?'p-amber':'p-red'; return `<span class="pill ${cls}">CSAT ${c.v}%${c.src==='placeholder'?'*':''}</span>`; }
+
+// ---------- health scoring ----------
 function daysTo(d){ if(!d) return 9999; return Math.round((new Date(d)-new Date())/86400000); }
 const EARLY = new Set(['Discovering','Pre Sales','Interest','Qualifying','Evaluation/Scoping','Prospecting']);
 function scoreAccount(a){
@@ -389,12 +436,14 @@ function scoreAccount(a){
   a.riskARR = a.renewalAmount*(100-score)/100;
   return a;
 }
-function computeAll(){ STATE.accounts.forEach(scoreAccount); rebuildEsc(); }
+function computeAll(){ STATE.accounts.forEach(scoreAccount); refreshCsat(); rebuildEsc(); }
 
-// ---------- escalations (auto-seeded + tracked) ----------
+// ---------- new-logo detection ----------
+function newLogo(a){ const ds=daysSince(a.firstPurchase); return ds!=null && ds<=365; }
+
+// ---------- escalations ----------
 function autoSeverity(a){ if(a.health<40||a.highCases>=3) return 'Critical'; if(a.health<55||a.highCases>=1) return 'High'; if(a.health<70) return 'Medium'; return 'Low'; }
 function rebuildEsc(){
-  // candidates: at-risk or watch accounts with a real signal
   STATE.escList = STATE.accounts.filter(a=> a.tier!=='healthy' && (a.highCases>0 || a.health<60 || (a.dclose<=90)))
     .map(a=>{
       const st = escState[a.id];
@@ -417,10 +466,12 @@ function setEscStatus(acctId,status){
 }
 function addEscNote(acctId,note){ if(!note) return; const cur=escState[acctId]||{status:'Open',log:[]}; cur.log=cur.log||[]; cur.log.push({t:new Date().toISOString(),note}); escState[acctId]=cur; LS.set('escState',escState); }
 
-// ---------- scope / hierarchy roll-ups ----------
+// ---------- roll-ups ----------
 function accountsUnder(nodeId){
   const node = STATE.nodeIndex[nodeId]; if(!node) return [];
-  const out=[]; (function walk(n){ (n.accounts||[]).forEach(a=>out.push(a)); Object.values(n.children||{}).forEach(walk); })(node);
+  const out=[], seen=new Set();
+  (function walk(n){ if(!n||seen.has(n.id)) return; seen.add(n.id);   // guard against manager-chain cycles
+    (n.accounts||[]).forEach(a=>out.push(a)); Object.values(n.children||{}).forEach(walk); })(node);
   return out;
 }
 function rollup(accts){
@@ -428,6 +479,7 @@ function rollup(accts){
   accts.forEach(a=>{ r.arr+=a.renewalAmount; r.risk+=a.riskARR; r.cases+=a.openCases; r.high+=a.highCases; r.renewals+=a.opps.length; r.ltv+=a.ltv||0;
     r.wsum+=a.health*a.renewalAmount; if(a.tier==='atrisk')r.red++; else if(a.tier==='watch')r.amber++; else r.green++; });
   r.health = r.arr>0? Math.round(r.wsum/r.arr) : Math.round(accts.reduce((s,a)=>s+a.health,0)/(accts.length||1));
+  const cv=accts.map(a=>csatVal(a).v).filter(v=>v!=null); r.csat = cv.length?Math.round(cv.reduce((s,v)=>s+v,0)/cv.length):null;
   return r;
 }
 function crumbPath(nodeId){
@@ -437,7 +489,7 @@ function crumbPath(nodeId){
   return path.filter(Boolean);
 }
 
-// ---------- rendering ----------
+// ---------- shared cells ----------
 function healthCell(h){ const c=h>=75?'var(--green)':h>=50?'var(--amber)':'var(--red)'; return `<span class="hs"><span class="bar"><i style="width:${h}%;background:${c}"></i></span><b style="color:${c}">${h}</b></span>`; }
 function tierPill(t){ return t==='healthy'?'<span class="pill p-green">Healthy</span>':t==='watch'?'<span class="pill p-amber">Watch</span>':'<span class="pill p-red">At risk</span>'; }
 function sevPill(s){ const m={Critical:'p-red',High:'p-red',Medium:'p-amber',Low:'p-gray'}; return `<span class="pill ${m[s]||'p-gray'}">${s}</span>`; }
@@ -450,25 +502,88 @@ function renderCrumb(){
     : `<button onclick="setScope('${n.id}')">${esc(n.name)}</button><span class="sep">›</span>`).join('');
   const node = STATE.nodeIndex[STATE.scope];
   $('#scoperole').textContent = node && node.title ? node.title : '';
+  const va=$('#viewas');
+  if(va){
+    const owners=[...new Set(STATE.accounts.map(a=>a.ownerName).filter(Boolean))].sort();
+    va.innerHTML = `View as <select class="select" style="text-transform:none;font-weight:600" onchange="setOwnerFilter(this.value)"><option value="">All CSMs</option>${owners.map(o=>`<option value="${esc(o)}"${ownerFilter===o?' selected':''}>${esc(o)}</option>`).join('')}</select>${ownerFilter?` <button class="btn sm" onclick="setOwnerFilter('')">Clear</button>`:''}`;
+  }
 }
 
 function setScope(id){ STATE.scope=id; route(); }
-function setTab(t){ STATE.tab=t; document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t)); route(); }
+function setTab(t){ STATE.tab=t; document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t)); window.scrollTo(0,0); route(); }
 
 function route(){
-  if(!STATE.tree) return;                                  // data not built yet (mid-reload)
-  if(!STATE.nodeIndex[STATE.scope]) STATE.scope='ROOT';    // stale scope guard
-  renderCrumb();
-  const accts = accountsUnder(STATE.scope);
+  if(!STATE.tree) return;
+  if(!STATE.nodeIndex[STATE.scope]) STATE.scope='ROOT';
+  STATE.accounts.forEach(a=>a.readiness=readinessScore(a));
+  const isHome = STATE.tab==='home';
+  $('#scopebar').style.display = isHome ? 'none' : '';
+  if(!isHome) renderCrumb();
+  const accts0 = accountsUnder(STATE.scope);
+  const accts = ownerFilter ? accts0.filter(a=>a.ownerName===ownerFilter) : accts0;
   const app=$('#app');
-  if(STATE.tab==='overview') app.innerHTML=viewOverview(accts);
+  if(STATE.tab==='home') app.innerHTML=viewHome();
+  else if(STATE.tab==='overview') app.innerHTML=viewOverview(accts);
   else if(STATE.tab==='hierarchy') app.innerHTML=viewHierarchy();
   else if(STATE.tab==='renewals') app.innerHTML=viewRenewals(accts);
+  else if(STATE.tab==='ctas') app.innerHTML=viewCTAs(accts);
   else if(STATE.tab==='escalations') app.innerHTML=viewEsc(accts);
+  else if(STATE.tab==='plans') app.innerHTML=viewPlans(accts);
+  else if(STATE.tab==='journeys') app.innerHTML=viewJourneys(accts);
   else if(STATE.tab==='worklist') app.innerHTML=viewWork(accts);
   else if(STATE.tab==='model') app.innerHTML=viewModel(accts);
   if(STATE.tab==='overview') drawOverviewCharts(accts);
-  $('#foot').innerHTML = `Scope: <b>${esc(STATE.nodeIndex[STATE.scope].name)}</b> · ${accts.length} accounts with an active renewal · Health scores are computed live from open Salesforce cases + renewal timing using the tunable model in the Health Model tab (owned by CS Ops). Lifetime value & products come from closed-won opportunities and line items; the sentiment index is derived from lifetime support-case signals (this org has no native CSAT field). Escalation status changes persist in your browser only — production would back this with a shared table.`;
+  if(STATE.tab==='home') drawHomeChart();
+  const cb=$('#ctaBadge'); if(cb) cb.textContent = ctas.filter(c=>c.status!=='Done').length;
+  $('#foot').innerHTML = isHome
+    ? `Axon Customer Success Command Center · live on Salesforce · an internal replacement for Gainsight.`
+    : `Scope: <b>${esc(STATE.nodeIndex[STATE.scope].name)}</b>${ownerFilter?` · filtered to CSM <b>${esc(ownerFilter)}</b>`:''} · ${accts.length} accounts with an active renewal · Health = live cases + renewal timing (tunable in Health Model). LTV & products from closed-won deals. Sentiment from lifetime support signals. CSAT, CTAs, journeys & success plans persist in your browser.`;
+}
+
+// ---- Home ----
+function viewHome(){
+  const accts=STATE.accounts, r=rollup(accts);
+  const logos=accts.filter(newLogo);
+  const planned=logos.filter(a=>plans[a.id]).length;
+  const kpis=[
+    ['Renewal ARR (book)',fmtMoney(r.arr),r.renewals+' open renewals'],
+    ['ARR at risk',fmtMoney(r.risk),Math.round(r.risk/(r.arr||1)*100)+'% risk-weighted'],
+    ['Accounts in book',r.n,r.green+' healthy · '+r.amber+' watch · '+r.red+' at-risk'],
+    ['Avg CSAT',r.csat==null?'—':r.csat+'%','placeholder metric'],
+    ['New logos to onboard',logos.length,planned+' with a success plan'],
+  ];
+  const features=[
+    ['Command Center','overview','Book-level KPIs, ARR at risk, health distribution, and your top revenue-weighted risk accounts.'],
+    ['Org Drill-down','hierarchy','Walk the exec → team → CSM → account hierarchy with roll-ups at every level.'],
+    ['Renewals','renewals','Every open renewal, triaged by revenue exposure, health, sentiment, CSAT, renewal readiness and lifetime value.'],
+    ['CTAs','ctas','Calls to action for CSMs — onboarding, TAP refreshes, renewals and product requests, auto-suggested and manual.'],
+    ['Escalations','escalations','Risk escalations auto-seeded from live signals — track each from open to resolved.'],
+    ['Success Plans','plans','Auto-generate onboarding + risk-aware plans for new logos, or build a custom plan for any account.'],
+    ['Journeys','journeys','Lifecycle outreach journeys (welcome, renewal, save play, adoption) with live membership and progress tracking.'],
+    ['My Worklist','worklist','A prioritized action list ranked by urgency and revenue.'],
+    ['Health Model','model','Tune the health-score weights and the entire book re-scores instantly — no engineering ticket.'],
+  ];
+  return `
+  <div class="hero">
+    <div class="eyebrow">Customer Success · Command Center</div>
+    <h2>Welcome to your CS Command Center</h2>
+    <p>This is your single, live view of the Axon renewal book — a lightweight internal replacement for Gainsight, running directly on Salesforce. Every number here is computed from live Opportunity, Case, and activity data: account health, renewal risk, lifetime value, products purchased, customer sentiment, and CSAT. Use the sidebar to move between the portfolio views, act on escalations and success plans, and tune the health model. Start below, or jump straight into a section.</p>
+  </div>
+  <div class="kpis">${kpis.map(k=>`<div class="kpi${/at risk/i.test(k[0])?' accent':''}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${esc(k[2])}</div></div>`).join('')}</div>
+  <div class="grid2">
+    <div class="card"><h3>Where to start <span class="hint">click a section to open it</span></h3>
+      <div class="features">${features.map(f=>`<div class="feature" onclick="setTab('${f[1]}')"><h4>${esc(f[0])}</h4><p>${esc(f[2])}</p><div class="go">Open →</div></div>`).join('')}</div>
+    </div>
+    <div class="card"><h3>Book health</h3><div class="chartbox"><canvas id="cHome"></canvas></div>
+      <div class="legend"><span><i class="dot" style="background:var(--green)"></i>Healthy ≥75</span><span><i class="dot" style="background:var(--amber)"></i>Watch 50–74</span><span><i class="dot" style="background:var(--red)"></i>At risk &lt;50</span></div>
+      ${logos.length?`<p class="mini" style="margin-top:14px"><b>${logos.length}</b> new-logo account${logos.length===1?'':'s'} to onboard. <a href="#" onclick="setTab('plans');return false" style="text-decoration:underline;text-decoration-color:var(--yellow)"><b>Generate success plans →</b></a></p>`:''}
+    </div>
+  </div>`;
+}
+function drawHomeChart(){
+  Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}}); charts={};
+  const r=rollup(STATE.accounts);
+  const h=$('#cHome'); if(h){ charts.home=new Chart(h,{type:'doughnut',data:{labels:['Healthy','Watch','At risk'],datasets:[{data:[r.green,r.amber,r.red],backgroundColor:['#0f7a55','#e0a100','#c8102e'],borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false}}}}); }
 }
 
 // ---- Overview ----
@@ -478,27 +593,27 @@ function viewOverview(accts){
     ['Renewal ARR in scope',fmtMoney(r.arr),r.renewals+' open renewals'],
     ['ARR at risk',fmtMoney(r.risk),Math.round(r.risk/(r.arr||1)*100)+'% of book, risk-weighted'],
     ['Avg health (ARR-wtd)',r.health,r.red+' at-risk · '+r.amber+' watch · '+r.green+' healthy'],
-    ['Lifetime value in scope',fmtMoney(r.ltv),'closed-won, all time'],
-    ['Open escalations',STATE.escList.filter(e=>accts.includes(e.acct)&&e.status!=='Resolved').length,r.high+' high/urgent cases · '+r.cases+' open cases'],
+    ['Avg CSAT',r.csat==null?'—':r.csat+'%','placeholder metric'],
+    ['Open escalations',STATE.escList.filter(e=>accts.includes(e.acct)&&e.status!=='Resolved').length,r.high+' high/urgent · '+r.cases+' open cases'],
   ];
   const topRisk=[...accts].sort((a,b)=>b.riskARR-a.riskARR).slice(0,8);
   return `
   <div class="kpis">${kpis.map(k=>`<div class="kpi${/at risk/i.test(k[0])?' accent':''}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${esc(k[2])}</div></div>`).join('')}</div>
   <div class="grid2">
-    <div class="card"><h3>Renewal ARR by team <span class="hint">click a bar's team in Org Drill-down to scope</span></h3><div class="chartbox"><canvas id="cTeam"></canvas></div></div>
+    <div class="card"><h3>Renewal ARR by team <span class="hint">click a team in Org Drill-down to scope</span></h3><div class="chartbox"><canvas id="cTeam"></canvas></div></div>
     <div class="card"><h3>Book health distribution</h3><div class="chartbox"><canvas id="cHealth"></canvas></div>
       <div class="legend"><span><i class="dot" style="background:var(--green)"></i>Healthy ≥75</span><span><i class="dot" style="background:var(--amber)"></i>Watch 50–74</span><span><i class="dot" style="background:var(--red)"></i>At risk &lt;50</span></div>
     </div>
   </div>
   <div class="card"><h3>Top risk-weighted accounts <span class="hint">renewal ARR × risk — where attention protects the most revenue</span></h3>
-    <table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th>Sentiment</th><th>Health</th><th class="num">ARR at risk</th></tr></thead><tbody>
-    ${topRisk.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td>${sentPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td></tr>`).join('')}
+    <table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th>CSAT</th><th>Health</th><th class="num">ARR at risk</th></tr></thead><tbody>
+    ${topRisk.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td>${csatPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td></tr>`).join('')}
     </tbody></table>
+    <p class="mini" style="margin-top:8px">* CSAT is a placeholder derived from support sentiment until survey data is connected.</p>
   </div>`;
 }
 function drawOverviewCharts(accts){
   Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}}); charts={};
-  // ARR by immediate child team of current scope (or by owner if leaf)
   const node=STATE.nodeIndex[STATE.scope]; if(!node) return;
   let groups=[];
   const kids=Object.values(node.children||{});
@@ -514,7 +629,7 @@ function drawOverviewCharts(accts){
 }
 function shortName(n){ return n.length>16?n.slice(0,15)+'…':n; }
 
-// ---- Hierarchy drill-down ----
+// ---- Hierarchy ----
 function viewHierarchy(){
   const node=STATE.nodeIndex[STATE.scope];
   const kids=Object.values(node.children||{}).map(k=>({node:k,r:rollup(accountsUnder(k.id))})).sort((a,b)=>b.r.arr-a.r.arr);
@@ -531,7 +646,6 @@ function viewHierarchy(){
       </div></div>`;
     }).join('')+`</div>`;
   }
-  // accounts owned directly at this node (leaf rep)
   const direct=node.accounts||[];
   if(direct.length){
     html+=`<h3 style="margin-top:18px">Accounts owned here (${direct.length})</h3>`+accountTable([...direct].sort((a,b)=>b.riskARR-a.riskARR));
@@ -540,20 +654,20 @@ function viewHierarchy(){
   return html;
 }
 function accountTable(accts){
-  return `<table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th class="num">Cases</th><th>Sentiment</th><th>Health</th></tr></thead><tbody>
-  ${accts.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${sentPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td></tr>`).join('')}
+  return `<table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th class="num">Lifetime $</th><th class="num">Close</th><th class="num">Cases</th><th>CSAT</th><th>Health</th></tr></thead><tbody>
+  ${accts.map(a=>`<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.dclose>9000?'—':a.dclose+'d'}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${csatPill(a)}</td><td>${healthCell(a.health)} ${tierPill(a.tier)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 
-// ---- Renewals triage ----
+// ---- Renewals ----
 let renewSort={k:'riskARR',dir:-1};
 function viewRenewals(accts){
-  const rows=[...accts].sort((a,b)=> renewSort.dir*((a[renewSort.k]>b[renewSort.k])?1:(a[renewSort.k]<b[renewSort.k])?-1:0));
+  const rows=[...accts].sort((a,b)=>{ const x=a[renewSort.k], y=b[renewSort.k]; const xn=x==null?-Infinity:x, yn=y==null?-Infinity:y; return renewSort.dir*((xn>yn)?1:(xn<yn)?-1:0); });
   const sc=(k,l)=>`<th class="num" onclick="setRenewSort('${k}')">${l}${renewSort.k===k?(renewSort.dir<0?' ▼':' ▲'):''}</th>`;
   return `<div class="card"><h3>Renewal & risk triage <span class="hint">${accts.length} accounts · prioritized by revenue exposure</span></h3>
   <div class="searchbar"><input id="rsearch" placeholder="Filter accounts…" oninput="filterTable(this,'rtbl')"></div>
-  <table id="rtbl"><thead><tr><th onclick="setRenewSort('name')">Account</th><th>Owner</th><th>Stage</th>${sc('dclose','Days to close')}${sc('renewalAmount','Renewal ARR')}${sc('ltv','Lifetime $')}${sc('openCases','Open cases')}${sc('sentiment','Sentiment')}${sc('riskARR','ARR at risk')}<th>Health</th></tr></thead><tbody>
-  ${rows.map(a=>{const st=a.opps[0]?a.opps[0].stage:'';const late=a.dclose<=90&&EARLY.has(st);return `<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td>${esc(st)}${late?' <span class="pill p-red">behind</span>':''}</td><td class="num">${a.dclose>9000?'—':a.dclose}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${sentPill(a)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td><td>${healthCell(a.health)}</td></tr>`;}).join('')}
+  <table id="rtbl"><thead><tr><th onclick="setRenewSort('name')">Account</th><th>Owner</th><th>Stage</th>${sc('dclose','Days to close')}${sc('renewalAmount','Renewal ARR')}${sc('ltv','Lifetime $')}${sc('openCases','Open cases')}${sc('csat','CSAT')}${sc('readiness','Renewal ready')}${sc('riskARR','ARR at risk')}<th>Health</th></tr></thead><tbody>
+  ${rows.map(a=>{const st=a.opps[0]?a.opps[0].stage:'';const late=a.dclose<=90&&EARLY.has(st);return `<tr onclick="openAcct('${a.id}')"><td><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td>${esc(st)}${late?' <span class="pill p-red">behind</span>':''}</td><td class="num">${a.dclose>9000?'—':a.dclose}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td class="num">${fmtMoney(a.ltv)}</td><td class="num">${a.openCases}${a.highCases?` <span class="pill p-red">${a.highCases}!</span>`:''}</td><td>${csatPill(a)}</td><td class="num">${readyPill(a.readiness)}</td><td class="num"><b>${fmtMoney(a.riskARR)}</b></td><td>${healthCell(a.health)}</td></tr>`;}).join('')}
   </tbody></table></div>`;
 }
 function setRenewSort(k){ if(renewSort.k===k)renewSort.dir*=-1; else {renewSort.k=k;renewSort.dir=(k==='name')?1:-1;} route(); }
@@ -584,29 +698,149 @@ function viewEsc(accts){
   ${list.length?'':'<p class="mini">Nothing here — no escalations match this scope/filter.</p>'}</div>`;
 }
 
-// ---- Worklist / Today ----
+// ---- Success Plans ----
+function planProgress(p){ if(!p||!p.milestones||!p.milestones.length) return 0; return Math.round(p.milestones.filter(m=>m.done).length/p.milestones.length*100); }
+function generatePlan(id){
+  const a=STATE.accounts.find(x=>x.id===id); if(!a) return;
+  const base=new Date();
+  const ms=[]; const uid=()=>'m'+Math.random().toString(36).slice(2,9);
+  const add=(days,title)=>ms.push({id:uid(),title,due:sfDate(new Date(base.getTime()+days*864e5)),done:false});
+  add(7,'Executive kickoff & welcome call');
+  add(14,'Map stakeholders & define success criteria');
+  add(30,'Deployment & provisioning');
+  add(45,'Admin & end-user training');
+  add(60,'Go-live / first adoption checkpoint');
+  add(90,'90-day value review & QBR');
+  if(a.highCases>0 || a.health<60) add(21,'Resolve open support escalations before onboarding milestones');
+  if(a.dclose<=365) add(Math.max(30,a.dclose-60),'Early renewal planning & value recap');
+  ms.sort((x,y)=> x.due<y.due?-1:1);
+  const objectives=[
+    'Achieve first measurable value within 90 days of onboarding',
+    'Drive adoption of purchased Axon products across the agency',
+    'Establish executive alignment and a clear path to renewal'
+  ];
+  plans[id]={acctId:id,created:new Date().toISOString(),updatedAt:new Date().toISOString(),objectives,milestones:ms,notes:'',auto:true};
+  savePlans();
+}
+function generateAllNewLogos(){
+  const logos=STATE.accounts.filter(newLogo).filter(a=>!plans[a.id]);
+  logos.forEach(a=>generatePlan(a.id));
+  toast(`Generated ${logos.length} success plan${logos.length===1?'':'s'} for new-logo accounts.`);
+  route();
+}
+function createOrOpenPlan(id){ if(!plans[id]) generatePlan(id); setTab('plans'); openPlan(id); }
+function viewPlans(accts){
+  const logos=accts.filter(newLogo);
+  const inScope=new Set(accts.map(a=>a.id));
+  const active=Object.values(plans).filter(p=>inScope.has(p.acctId));
+  const needPlan=logos.filter(a=>!plans[a.id]);
+  const dueSoon=active.reduce((n,p)=>n+ (p.milestones||[]).filter(m=>!m.done && daysSince(m.due)!=null && daysSince(m.due)>=-14).length,0);
+  const kpis=[
+    ['New logos in scope',logos.length,'first purchase within 12 months'],
+    ['Plans active',active.length,needPlan.length+' new logos still need one'],
+    ['Milestones due soon',dueSoon,'open & due within 2 weeks'],
+  ];
+  let html=`<div class="card"><h3>Success Plans <span class="hint">onboarding + risk-aware plans for new logos, and custom plans for any account</span></h3>
+  <div class="kpis" style="margin-bottom:14px">${kpis.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${esc(k[2])}</div></div>`).join('')}</div>
+  <div class="row-actions" style="margin-bottom:6px">
+    <button class="btn primary" onclick="generateAllNewLogos()" ${needPlan.length?'':'disabled'}>Generate plans for all new logos${needPlan.length?` (${needPlan.length})`:''}</button>
+    <span class="mini">Auto-builds an onboarding + risk-aware plan, then you customize it.</span>
+  </div></div>`;
+
+  // New logos needing onboarding
+  html+=`<div class="card"><h3>New logos to onboard <span class="hint">${logos.length} account${logos.length===1?'':'s'} · newest customers first</span></h3>`;
+  if(!logos.length){ html+=`<p class="mini">No new-logo accounts in this scope. A "new logo" is an account whose first closed-won deal landed within the last 12 months.</p>`; }
+  else{
+    const sorted=[...logos].sort((a,b)=> (b.firstPurchase||'').localeCompare(a.firstPurchase||''));
+    html+=`<table><thead><tr><th>Account</th><th>Owner</th><th class="num">First purchase</th><th class="num">Lifetime $</th><th>Health</th><th>Plan</th><th></th></tr></thead><tbody>
+    ${sorted.map(a=>{const p=plans[a.id];const prog=planProgress(p);return `<tr><td onclick="openAcct('${a.id}')" style="cursor:pointer"><b>${esc(a.name)}</b> <span class="tag">${esc(a.state||'—')}</span></td><td>${esc(a.ownerName)}</td><td class="num">${esc(a.firstPurchase||'—')}</td><td class="num">${fmtMoney(a.ltv)}</td><td>${healthCell(a.health)}</td><td>${p?`<span class="pill p-green">Plan · ${prog}%</span>`:'<span class="pill p-gray">None</span>'}</td><td class="row-actions">${p?`<button class="btn sm" onclick="openPlan('${a.id}')">Open</button>`:`<button class="btn primary sm" onclick="createOrOpenPlan('${a.id}')">Generate</button>`}</td></tr>`;}).join('')}
+    </tbody></table>`;
+  }
+  html+=`</div>`;
+
+  // Active plans (incl. custom, non-new-logo)
+  const custom=active.filter(p=>{ const a=STATE.accounts.find(x=>x.id===p.acctId); return a && !newLogo(a); });
+  if(custom.length){
+    html+=`<div class="card"><h3>Other active plans <span class="hint">custom plans on established accounts</span></h3>
+    <table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th>Progress</th><th></th></tr></thead><tbody>
+    ${custom.map(p=>{const a=STATE.accounts.find(x=>x.id===p.acctId);const prog=planProgress(p);return `<tr><td onclick="openAcct('${a.id}')" style="cursor:pointer"><b>${esc(a.name)}</b></td><td>${esc(a.ownerName)}</td><td class="num">${fmtMoney(a.renewalAmount)}</td><td><div class="progress" style="width:120px"><i style="width:${prog}%"></i></div><span class="mini">${prog}%</span></td><td><button class="btn sm" onclick="openPlan('${a.id}')">Open</button></td></tr>`;}).join('')}
+    </tbody></table></div>`;
+  }
+  html+=`<p class="mini" style="margin:2px 4px">Tip: open any account (from any tab) and use <b>Create / open success plan</b> to build a customized plan — it doesn't have to be a new logo.</p>`;
+  return html;
+}
+function openPlan(id){
+  if(!plans[id]) generatePlan(id);
+  const p=plans[id]; const a=STATE.accounts.find(x=>x.id===id); if(!p||!a) return;
+  const prog=planProgress(p);
+  const sheet=$('#sheet');
+  sheet.innerHTML=`<div class="hd"><div><h2>Success Plan — ${esc(a.name)}</h2><div class="mini">Owner ${esc(a.ownerName)} · ${newLogo(a)?'New logo · first purchase '+esc(a.firstPurchase||''):'Established account'} · Renewal ${a.dclose>9000?'—':'in '+a.dclose+'d'}</div></div><button class="x" onclick="closeSheet()">✕</button></div>
+  <div class="bd">
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Progress <span class="hint">${p.milestones.filter(m=>m.done).length} of ${p.milestones.length} milestones complete</span></h3>
+      <div class="progress"><i style="width:${prog}%"></i></div>
+      <p class="mini" style="margin-top:8px">Plan ${p.auto?'auto-generated':'created'} ${new Date(p.created).toLocaleDateString()} · saved in your browser.</p>
+    </div>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Objectives <span class="hint">one per line</span></h3>
+      <textarea class="obj-in" id="planObj" oninput="setPlanObjectives('${id}',this.value)">${esc((p.objectives||[]).join('\n'))}</textarea>
+    </div>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Milestones</h3>
+      <div id="planMs">${p.milestones.map(m=>msRow(id,m)).join('')}</div>
+      <div class="row-actions" style="margin-top:10px"><button class="btn sm" onclick="addPlanMs('${id}')">+ Add milestone</button></div>
+    </div>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Notes</h3>
+      <textarea class="notes-in" id="planNotes" placeholder="Context, stakeholders, risks, next steps…" oninput="setPlanNotes('${id}',this.value)">${esc(p.notes||'')}</textarea>
+    </div>
+    <div class="row-actions">
+      <button class="btn" onclick="regenPlan('${id}')">Regenerate from template</button>
+      <button class="btn" onclick="delPlan('${id}')" style="border-color:var(--red);color:var(--red)">Delete plan</button>
+      <button class="btn primary" onclick="openAcct('${id}')">Open account 360</button>
+    </div>
+  </div>`;
+  showOverlay();
+}
+function msRow(id,m){
+  return `<div class="milestone${m.done?' done':''}" data-ms="${m.id}">
+    <input type="checkbox" ${m.done?'checked':''} onchange="togglePlanMs('${id}','${m.id}',this.checked)">
+    <input type="text" value="${esc(m.title)}" onchange="editPlanMsTitle('${id}','${m.id}',this.value)">
+    <input type="date" value="${esc(m.due||'')}" onchange="editPlanMsDue('${id}','${m.id}',this.value)">
+    <button class="btn sm" onclick="removePlanMs('${id}','${m.id}')">Remove</button>
+  </div>`;
+}
+function touchPlan(id){ if(plans[id]){ plans[id].updatedAt=new Date().toISOString(); savePlans(); } }
+function setPlanObjectives(id,v){ if(!plans[id])return; plans[id].objectives=v.split('\n').map(s=>s.trim()).filter(Boolean); touchPlan(id); }
+function setPlanNotes(id,v){ if(!plans[id])return; plans[id].notes=v; touchPlan(id); }
+function togglePlanMs(id,mid,done){ const p=plans[id];if(!p)return; const m=p.milestones.find(x=>x.id===mid); if(m)m.done=done; touchPlan(id); openPlan(id); }
+function editPlanMsTitle(id,mid,v){ const p=plans[id];if(!p)return; const m=p.milestones.find(x=>x.id===mid); if(m)m.title=v; touchPlan(id); }
+function editPlanMsDue(id,mid,v){ const p=plans[id];if(!p)return; const m=p.milestones.find(x=>x.id===mid); if(m)m.due=v; touchPlan(id); openPlan(id); }
+function addPlanMs(id){ const p=plans[id];if(!p)return; p.milestones.push({id:'m'+Math.random().toString(36).slice(2,9),title:'New milestone',due:sfDate(new Date(Date.now()+14*864e5)),done:false}); touchPlan(id); openPlan(id); }
+function removePlanMs(id,mid){ const p=plans[id];if(!p)return; p.milestones=p.milestones.filter(x=>x.id!==mid); touchPlan(id); openPlan(id); }
+function regenPlan(id){ if(!confirm('Regenerate this plan from the template? Your edits to milestones, objectives and notes will be replaced.')) return; delete plans[id]; generatePlan(id); openPlan(id); toast('Plan regenerated from template.'); }
+function delPlan(id){ if(!confirm('Delete this success plan? This cannot be undone.')) return; delete plans[id]; savePlans(); closeSheet(); route(); }
+
+// ---- Worklist ----
 function viewWork(accts){
   const items=[];
   accts.forEach(a=>{
     const st=a.opps[0]?a.opps[0].stage:'';
     if(a.dclose<=90 && EARLY.has(st)) items.push({p:1,a,label:`Renewal closes in ${a.dclose}d but still "${st}" — advance the deal`,tag:'Renewal at risk'});
     if(a.highCases>0) items.push({p:2,a,label:`${a.highCases} high/urgent support case(s) open — coordinate resolution`,tag:'Support escalation'});
-    if(a.sentTier==='neg') items.push({p:2,a,label:`Strained sentiment (index ${a.sentiment}) from support history — proactively check in`,tag:'Sentiment risk'});
+    if(newLogo(a) && !plans[a.id]) items.push({p:2,a,label:`New logo (first purchase ${a.firstPurchase}) with no success plan — generate one`,tag:'Onboard'});
+    if(a.sentTier==='neg') items.push({p:3,a,label:`Strained sentiment (${a.sentiment}) from support history — proactively check in`,tag:'Sentiment risk'});
     if(a.tier==='atrisk' && a.renewalAmount>1e6) items.push({p:3,a,label:`At-risk account with ${fmtMoney(a.renewalAmount)} renewal — build a save play`,tag:'Save play'});
     if(a.dclose<=180 && a.dclose>90 && a.tier!=='healthy') items.push({p:4,a,label:`Renewal in ${a.dclose}d, health ${a.health} — start early engagement`,tag:'Get ahead'});
   });
   items.sort((x,y)=> x.p-y.p || y.a.riskARR-x.a.riskARR);
   return `<div class="card"><h3>Prioritized worklist <span class="hint">${items.length} actions across scope · ranked by urgency then revenue</span></h3>
   <table><thead><tr><th>Priority action</th><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th>Health</th></tr></thead><tbody>
-  ${items.slice(0,40).map(it=>`<tr onclick="openAcct('${it.a.id}')"><td><span class="pill ${it.p<=2?'p-red':it.p===3?'p-amber':'p-gray'}">${esc(it.tag)}</span> ${esc(it.label)}</td><td><b>${esc(it.a.name)}</b></td><td>${esc(it.a.ownerName)}</td><td class="num">${fmtMoney(it.a.renewalAmount)}</td><td>${healthCell(it.a.health)}</td></tr>`).join('')}
+  ${items.slice(0,50).map(it=>`<tr onclick="openAcct('${it.a.id}')"><td><span class="pill ${it.p<=2?'p-red':it.p===3?'p-amber':'p-gray'}">${esc(it.tag)}</span> ${esc(it.label)}</td><td><b>${esc(it.a.name)}</b></td><td>${esc(it.a.ownerName)}</td><td class="num">${fmtMoney(it.a.renewalAmount)}</td><td>${healthCell(it.a.health)}</td></tr>`).join('')}
   </tbody></table>${items.length?'':'<p class="mini">Clear queue — nothing urgent in this scope.</p>'}</div>`;
 }
 
-// ---- Health model settings ----
+// ---- Health model ----
 function viewModel(accts){
   const sl=(k,l,max)=>`<div class="slider"><label>${l}</label><input type="range" min="0" max="${max}" step="1" value="${WEIGHTS[k]}" oninput="setWeight('${k}',this.value,this)"><span id="w_${k}">${WEIGHTS[k]}</span></div>`;
   const r=rollup(accts);
-  return `<div class="card"><h3>Health-score model <span class="hint">CS Ops owns this — adjust weights and the whole book re-scores instantly, no engineering ticket</span></h3>
+  return `<div class="card"><h3>Health-score model <span class="hint">CS Ops owns this — adjust weights and the whole book re-scores instantly</span></h3>
   <p class="mini">Every account starts at 100. These penalties subtract from it based on live Salesforce signals. This transparency is the point: the score is never a black box.</p>
   ${sl('openCase','Per open case',5)}
   ${sl('highSev','Per high/urgent case',15)}
@@ -616,14 +850,14 @@ function viewModel(accts){
   ${sl('engage','Stale engagement (no touch 90d+)',30)}
   <div style="margin-top:14px" class="row-actions"><button class="btn primary" onclick="saveWeights()">Save model</button><button class="btn" onclick="resetWeights()">Reset defaults</button></div>
   <p class="mini" style="margin-top:14px">Current scope re-scored: <b>${r.green}</b> healthy · <b>${r.amber}</b> watch · <b>${r.red}</b> at risk · avg <b>${r.health}</b>.</p>
-  <p class="mini" style="margin-top:10px;color:var(--muted)">Note: the customer <b>sentiment/satisfaction</b> index is computed separately from lifetime support-case signals (high/urgent share, escalation share, ticket volume, currently-open high-priority cases) and is not affected by these health weights.</p>
+  <p class="mini" style="margin-top:10px;color:var(--muted)">Note: sentiment and CSAT are computed separately and are not affected by these health weights.</p>
   </div>`;
 }
 function setWeight(k,v,el){ WEIGHTS[k]=+v; document.getElementById('w_'+k).textContent=v; computeAll(); const p=el.closest('.card').querySelectorAll('.mini'); const r=rollup(accountsUnder(STATE.scope)); if(p.length) p[p.length-2].innerHTML=`Current scope re-scored: <b>${r.green}</b> healthy · <b>${r.amber}</b> watch · <b>${r.red}</b> at risk · avg <b>${r.health}</b>.`; }
 function saveWeights(){ LS.set('weights',WEIGHTS); toast('Model saved — applies every time you open this dashboard.'); }
 function resetWeights(){ WEIGHTS=Object.assign({},DEFAULT_WEIGHTS); LS.set('weights',WEIGHTS); computeAll(); route(); }
 
-// ---- Communications (logged Salesforce activities) — shown inside Account 360 ----
+// ---- Communications ----
 async function loadAcctComms(id){
   const box=$('#acctComms'); if(!box) return;
   if(commsCache[id]){ box.innerHTML=commsCache[id]; return; }
@@ -643,7 +877,7 @@ async function loadAcctComms(id){
 }
 function toggleComm(ev,a){ ev.preventDefault(); const w=a.closest('.commtext'),cs=w.querySelector('.cs'),cf=w.querySelector('.cf'); const showFull=cf.classList.contains('hidden'); cf.classList.toggle('hidden',!showFull); cs.classList.toggle('hidden',showFull); a.textContent=showFull?'less':'more'; }
 
-// ---- Purchase history & products (closed-won line items) — shown inside Account 360 ----
+// ---- Purchase history & products ----
 async function loadAcctIntel(id){
   const dBox=$('#acctDeals'), pBox=$('#acctProducts');
   if(intelCache[id]){ if(dBox)dBox.innerHTML=intelCache[id].deals; if(pBox)pBox.innerHTML=intelCache[id].prod; return; }
@@ -672,23 +906,50 @@ async function loadAcctIntel(id){
 // ---- Account 360 ----
 function openAcct(id){
   const a=STATE.accounts.find(x=>x.id===id); if(!a) return;
+  a.readiness=readinessScore(a);
   const cur=escState[id];
+  const c=csatVal(a);
   const compRows=a.comps.length?a.comps.map(c=>`<div>${esc(c[0])}</div><div class="${c[1]<0?'neg':'pos'}">${c[1]}</div>`).join(''):'<div class="mini">No penalties — full health.</div>';
   const opps=a.opps.slice().sort((x,y)=>(x.close>y.close?1:-1));
   const resolvedRate = a.lifeCases>0 ? Math.round((a.lifeCases-a.openCases)/a.lifeCases*100) : null;
   const sentColor = a.sentiment==null?'var(--muted)':a.sentTier==='pos'?'var(--green)':a.sentTier==='neu'?'var(--amber)':'var(--red)';
+  const hasPlan=!!plans[id];
   const sheet=$('#sheet');
-  sheet.innerHTML=`<div class="hd"><div><h2>${esc(a.name)}</h2><div class="mini">${esc(a.state||'')} · Owner ${esc(a.ownerName)}${a.ownerTitle?' ('+esc(a.ownerTitle)+')':''}</div></div><button class="x" onclick="closeSheet()">✕</button></div>
+  sheet.innerHTML=`<div class="hd"><div><h2>${esc(a.name)}</h2><div class="mini">${esc(a.state||'')} · Owner ${esc(a.ownerName)}${a.ownerTitle?' ('+esc(a.ownerTitle)+')':''}${newLogo(a)?' · <b>New logo</b>':''}</div></div><button class="x" onclick="closeSheet()">✕</button></div>
   <div class="bd">
+    <div class="row-actions" style="margin-bottom:14px">
+      <button class="btn primary" onclick="createOrOpenPlan('${a.id}')">${hasPlan?'Open success plan':'Create success plan'}</button>
+      <button class="btn" onclick="quickCta('${a.id}')">+ Add CTA</button>
+      ${a.tier!=='healthy'?`<button class="btn" onclick="setEscStatus('${a.id}','In Progress');openAcct('${a.id}')">Start escalation</button>`:''}
+    </div>
     <div class="kpis" style="margin-bottom:16px">
       <div class="kpi"><div class="l">Health</div><div class="v" style="color:${a.health>=75?'var(--green)':a.health>=50?'var(--amber)':'var(--red)'}">${a.health}</div><div class="d">${tierPill(a.tier)}</div></div>
+      <div class="kpi"><div class="l">CSAT</div><div class="v" style="color:${csatColor(c.v)}">${c.v==null?'—':c.v+'%'}</div><div class="d">${c.v==null?'no data':csatFace(c.v)+(c.src==='placeholder'?' · placeholder':' · set by CSM')}</div></div>
       <div class="kpi"><div class="l">Sentiment</div><div class="v" style="color:${sentColor}">${a.sentiment==null?'—':a.sentiment}</div><div class="d">${sentPill(a)}</div></div>
       <div class="kpi"><div class="l">Lifetime value</div><div class="v">${fmtMoney(a.ltv)}</div><div class="d">${a.pastDeals} closed-won deals</div></div>
       <div class="kpi"><div class="l">Renewal ARR</div><div class="v">${fmtMoney(a.renewalAmount)}</div><div class="d">${a.dclose>9000?'—':'closes in '+a.dclose+' days'}</div></div>
       <div class="kpi"><div class="l">Open cases</div><div class="v">${a.openCases}</div><div class="d">${a.highCases} high/urgent</div></div>
-      <div class="kpi"><div class="l">Last activity</div><div class="v">${a.dsAct==null?'—':a.dsAct+'d'}</div><div class="d">${a.lastAct?('ago · '+esc(a.lastAct)):'none on record'}</div></div>
     </div>
 
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Customer satisfaction (CSAT) <span class="hint">placeholder — set a real score or connect surveys later</span></h3>
+      <div class="csat-wrap">
+        <div class="csat-num" style="color:${csatColor(c.v)}">${c.v==null?'—':c.v+'%'}</div>
+        <div><div class="csat-face" style="color:${csatColor(c.v)}">${c.v==null?'No rating':csatFace(c.v)}</div><div class="mini">${c.src==='manual'?'Set manually by a CSM':c.src==='placeholder'?'Placeholder derived from support sentiment':'No data yet'}</div></div>
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <label class="mini">Set CSAT %</label>
+        <input type="number" min="0" max="100" value="${c.v==null?'':c.v}" style="width:90px;border:1px solid var(--line2);padding:6px 8px;border-radius:2px;font:inherit" onchange="setCsat('${a.id}',this.value);openAcct('${a.id}')">
+        ${csat[a.id]!=null?`<button class="btn sm" onclick="setCsat('${a.id}','');openAcct('${a.id}')">Clear override</button>`:''}
+      </div>
+      <p class="mini" style="margin-top:10px;color:var(--muted)">This org has no survey/CSAT object yet, so CSAT is a placeholder. When surveys (or an NPS/CSAT field) are added in Salesforce, wire them in here to replace the derived value.</p>
+    </div>
+
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Renewal readiness <span class="hint">${a.readiness}% ready to renew</span></h3>
+      <div class="progress"><i style="width:${a.readiness}%"></i></div>
+      <div class="comp" style="grid-template-columns:1fr auto;margin-top:12px">
+        ${readinessChecklist(a).map(c=>`<div>${esc(c[0])}</div><div class="${c[1]?'pos':'neg'}">${c[1]?'✓':'—'}</div>`).join('')}
+      </div>
+    </div>
     <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Purchase history & lifetime value <span class="hint">all closed-won opportunities</span></h3>
       <div class="comp" style="grid-template-columns:1fr auto;margin-bottom:12px">
         <div>Lifetime value (closed-won)</div><div class="pos">${fmtFull(a.ltv)}</div>
@@ -703,9 +964,9 @@ function openAcct(id){
       <div id="acctProducts"><div class="mini">Loading products…</div></div>
     </div>
 
-    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Customer sentiment & satisfaction <span class="hint">derived from lifetime support-case signals</span></h3>
+    <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Customer sentiment <span class="hint">derived from lifetime support-case signals</span></h3>
       ${a.sentiment==null
-        ? '<p class="mini">No support-case history on record for this account — no sentiment signal to derive.</p>'
+        ? '<p class="mini">No support-case history on record for this account.</p>'
         : `<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px"><div style="font-size:34px;font-weight:800;color:${sentColor};font-variant-numeric:tabular-nums">${a.sentiment}</div><div>${sentPill(a)}<div class="mini" style="margin-top:4px">0 = heavy friction · 100 = smooth</div></div></div>
         <div class="comp" style="grid-template-columns:1fr auto">
           <div>Lifetime support cases</div><div><b>${a.lifeCases.toLocaleString()}</b></div>
@@ -714,7 +975,6 @@ function openAcct(id){
           <div>Currently open high/urgent</div><div class="${a.highCases>0?'neg':''}">${a.highCases}</div>
           <div>Resolved rate</div><div class="${resolvedRate!=null&&resolvedRate>=90?'pos':''}">${resolvedRate==null?'—':resolvedRate+'%'}</div>
         </div>`}
-      <p class="mini" style="margin-top:10px;color:var(--muted)">This org has no native CSAT/NPS field, so satisfaction is inferred transparently from support history. Swap in survey/NPS data here if it becomes available in Salesforce.</p>
     </div>
 
     <div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Health breakdown <span class="hint">why this number</span></h3><div class="comp"><div><b>Base</b></div><div class="pos">100</div>${compRows}<div style="border-top:1px solid var(--line);padding-top:6px"><b>Score</b></div><div style="border-top:1px solid var(--line);padding-top:6px"><b>${a.health}</b></div></div></div>
@@ -727,32 +987,171 @@ function openAcct(id){
       <div class="tl" style="margin-top:12px">${(cur&&cur.log&&cur.log.length)?cur.log.slice().reverse().map(l=>`<div class="ev"><div class="t">${new Date(l.t).toLocaleString()}</div><div>${esc(l.note)}</div></div>`).join(''):'<span class="mini">No updates logged yet.</span>'}</div>
     </div>
   </div>`;
-  $('#overlay').classList.add('show');
+  showOverlay();
   loadAcctComms(a.id);
   loadAcctIntel(a.id);
 }
+function showOverlay(){ $('#overlay').classList.add('show'); $('#sheet').parentElement.scrollTop=0; }
 function closeSheet(){ $('#overlay').classList.remove('show'); }
 $('#overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') closeSheet(); });
+
+// ---- View-as-CSM auto-filter (Gainsight: dashboards auto-filter to the user) ----
+function setOwnerFilter(v){ ownerFilter=v; route(); }
+
+// ---- Renewal Readiness (Gainsight: Renewals / 'Renewal Readiness') ----
+function readinessChecklist(a){
+  const st=a.opps[0]?a.opps[0].stage:'';
+  return [
+    ['Active renewal opportunity', a.opps.length>0],
+    ['Deal past early stage', !EARLY.has(st)],
+    ['No open high/urgent cases', (a.highCases||0)===0],
+    ['Engaged in last 90 days', a.dsAct!=null && a.dsAct<=90],
+    ['Success plan created', !!plans[a.id]],
+    ['Health 60 or above', a.health>=60]
+  ];
+}
+function readinessScore(a){ const c=readinessChecklist(a); return Math.round(c.filter(x=>x[1]).length/c.length*100); }
+function readyPill(v){ const cls=v>=80?'p-green':v>=50?'p-amber':'p-red'; return `<span class="pill ${cls}">${v}%</span>`; }
+
+// ---- CTAs / Calls to Action (Gainsight: CTAs — TAP refreshes, CS-specific requests, onboarding, renewals) ----
+const CTA_TYPES=['Onboarding','Renewal','TAP Refresh','CS Request','Risk','Adoption'];
+function cid(){ return 'c'+Math.random().toString(36).slice(2,9); }
+function autoCtas(accts){
+  const out=[];
+  accts.forEach(a=>{
+    if(newLogo(a) && !plans[a.id]) out.push({acctId:a.id,name:a.name,type:'Onboarding',title:`Kick off onboarding for new logo ${a.name}`,priority:'High',reason:'New logo without a success plan'});
+    if(a.dclose<=90 && a.readiness<70) out.push({acctId:a.id,name:a.name,type:'Renewal',title:`Advance renewal readiness for ${a.name}`,priority:'High',reason:`Renewal in ${a.dclose>9000?'—':a.dclose+'d'} · ${a.readiness}% ready`});
+    if(a.highCases>0) out.push({acctId:a.id,name:a.name,type:'Risk',title:`Resolve ${a.highCases} high/urgent case(s) at ${a.name}`,priority:'High',reason:'Open high/urgent support cases'});
+    if(a.dsAct!=null && a.dsAct>120 && a.tier!=='healthy') out.push({acctId:a.id,name:a.name,type:'Adoption',title:`Re-engage ${a.name}`,priority:'Medium',reason:`No activity in ${a.dsAct} days`});
+  });
+  return out.filter(o=>!ctas.some(c=>c.acctId===o.acctId && c.type===o.type && c.status!=='Done'));
+}
+function ctaTypePill(t){ return `<span class="pill p-gray">${esc(t)}</span>`; }
+function ctaStPill(s){ const m={Open:'p-red','In Progress':'p-amber',Done:'p-green'}; return `<span class="pill ${m[s]||'p-gray'}">${s}</span>`; }
+function viewCTAs(accts){
+  const inS=new Set(accts.map(a=>a.id));
+  const mine=ctas.filter(c=> !c.acctId || inS.has(c.acctId));
+  const open=mine.filter(c=>c.status!=='Done');
+  const high=open.filter(c=>c.priority==='High').length;
+  const today=sfDate(new Date());
+  const overdue=open.filter(c=>c.due && c.due<today).length;
+  const suggestions=autoCtas(accts);
+  const ownerAccts=[...accts].sort((a,b)=>a.name<b.name?-1:1);
+  const kpis=[['Open CTAs',open.length,'assigned & in-flight'],['High priority',high,'open & urgent'],['Overdue',overdue,'past the due date'],['Auto-suggested',suggestions.length,'from live signals']];
+  const rows=[...mine].sort((a,b)=> (a.status==='Done'?1:0)-(b.status==='Done'?1:0) || (a.due||'zzz').localeCompare(b.due||'zzz'));
+  return `<div class="card"><h3>Calls to Action (CTAs) <span class="hint">action items for CSMs — onboarding, TAP refreshes, renewals, product requests</span></h3>
+  <div class="kpis" style="margin-bottom:14px">${kpis.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${esc(k[2])}</div></div>`).join('')}</div>
+  <div class="card" style="box-shadow:none;border-style:dashed;margin:0 0 16px"><h3 style="border:none;margin:0 0 10px">Log a CTA</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select class="select" id="ctaType">${CTA_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      <select class="select" id="ctaAcct"><option value="">— account (optional) —</option>${ownerAccts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
+      <select class="select" id="ctaPri"><option>High</option><option selected>Medium</option><option>Low</option></select>
+      <input type="date" class="select" id="ctaDue" value="${sfDate(new Date(Date.now()+14*864e5))}">
+      <input type="text" id="ctaTitle" placeholder="What needs to happen?" style="flex:1;min-width:220px;border:1px solid var(--line2);padding:7px 10px;border-radius:2px;font:inherit">
+      <button class="btn primary" onclick="addCta()">Add CTA</button>
+    </div>
+    <p class="mini" style="margin-top:8px;color:var(--muted)">TAP refresh data isn't in Salesforce yet (targeted for the Summer 2027 migration from RevStream), so log TAP CTAs here manually for now.</p>
+  </div>
+  ${suggestions.length?`<div class="card" style="box-shadow:none;margin:0 0 16px"><h3>Suggested CTAs <span class="hint">auto-detected from live signals · add the ones worth tracking</span></h3>
+    <table><thead><tr><th>Type</th><th>Action</th><th>Why</th><th></th></tr></thead><tbody>
+    ${suggestions.slice(0,40).map(s=>`<tr><td>${ctaTypePill(s.type)}</td><td onclick="openAcct('${s.acctId}')" style="cursor:pointer"><b>${esc(s.title)}</b></td><td class="mini">${esc(s.reason)}</td><td><button class="btn sm" onclick="acceptAutoCta('${s.acctId}','${s.type}')">Add</button></td></tr>`).join('')}
+    </tbody></table></div>`:''}
+  <div class="card" style="box-shadow:none;margin:0"><h3>Tracked CTAs <span class="hint">${open.length} open of ${mine.length}</span></h3>
+    ${rows.length?`<table><thead><tr><th>Type</th><th>Action</th><th>Account</th><th>Priority</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(c=>`<tr><td>${ctaTypePill(c.type)}</td><td>${esc(c.title)}</td><td>${c.acctId?`<span onclick="openAcct('${c.acctId}')" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--yellow)">${esc(c.name||'account')}</span>`:'<span class="mini">—</span>'}</td><td><span class="pill ${c.priority==='High'?'p-red':c.priority==='Medium'?'p-amber':'p-gray'}">${esc(c.priority)}</span></td><td class="mini" ${c.due&&c.due<today&&c.status!=='Done'?'style="color:var(--red);font-weight:700"':''}>${esc(c.due||'—')}</td><td>${ctaStPill(c.status)}</td><td class="row-actions">${c.status!=='Done'?`<button class="btn sm" onclick="ctaAction('${c.id}','${c.status==='Open'?'In Progress':'Done'}')">${c.status==='Open'?'Start':'Done'}</button>`:`<button class="btn sm" onclick="ctaAction('${c.id}','Open')">Reopen</button>`}<button class="btn sm" onclick="delCta('${c.id}')">✕</button></td></tr>`).join('')}
+    </tbody></table>`:'<p class="mini">No CTAs tracked yet. Add one above, or accept a suggestion.</p>'}
+  </div>`;
+}
+function addCta(){
+  const type=$('#ctaType').value, acctId=$('#ctaAcct').value, pri=$('#ctaPri').value, due=$('#ctaDue').value, title=($('#ctaTitle').value||'').trim();
+  if(!title){ toast('Add a short description first.'); return; }
+  const name = acctId ? ((STATE.accounts.find(a=>a.id===acctId)||{}).name||'') : '';
+  ctas.push({id:cid(),type,acctId,name,priority:pri,due,title,status:'Open',source:'Manual',createdAt:new Date().toISOString()});
+  saveCtas(); route();
+}
+function acceptAutoCta(acctId,type){
+  const s=autoCtas(STATE.accounts).find(o=>o.acctId===acctId&&o.type===type);
+  const a=STATE.accounts.find(x=>x.id===acctId);
+  ctas.push({id:cid(),type,acctId,name:a?a.name:'',priority:s?s.priority:'Medium',due:sfDate(new Date(Date.now()+14*864e5)),title:s?s.title:(type+' action'),status:'Open',source:'Auto',createdAt:new Date().toISOString()});
+  saveCtas(); route();
+}
+function ctaAction(id,status){ const c=ctas.find(x=>x.id===id); if(c){ c.status=status; saveCtas(); route(); } }
+function delCta(id){ ctas=ctas.filter(x=>x.id!==id); saveCtas(); route(); }
+function quickCta(id){ const t=prompt('New action item (CTA) for this account:'); if(!t) return; const a=STATE.accounts.find(x=>x.id===id); ctas.push({id:cid(),type:'CS Request',acctId:id,name:a?a.name:'',priority:'Medium',due:sfDate(new Date(Date.now()+14*864e5)),title:t.trim(),status:'Open',source:'Manual',createdAt:new Date().toISOString()}); saveCtas(); toast('CTA added — see the CTAs tab.'); }
+
+// ---- Journeys / Journey Orchestrator (Gainsight: Email Outreach) ----
+const JOURNEYS=[
+  {id:'welcome',name:'New Logo Welcome Series',desc:'Automated onboarding outreach to new-logo POCs.',steps:['Day 0 — Welcome & CSM introduction','Day 3 — Onboarding kickoff scheduling','Day 14 — Getting-started resources','Day 30 — First value check-in'],match:a=>newLogo(a)},
+  {id:'renewal90',name:'Renewal 90-Day Outreach',desc:'Proactive renewal outreach as the date approaches.',steps:['T-90 — Value recap & renewal heads-up','T-60 — Renewal proposal review','T-30 — Confirm paperwork & stakeholders'],match:a=>a.dclose<=90},
+  {id:'save',name:'At-Risk Save Play',desc:'Targeted retention outreach for at-risk accounts.',steps:['Executive check-in','Risk & escalation review','Success-plan reset'],match:a=>a.tier==='atrisk'},
+  {id:'adopt',name:'Product Adoption Nudge',desc:'Nudge stale accounts toward deeper product adoption.',steps:['Share usage insights','Feature spotlight','Offer a training session'],match:a=>a.dsAct!=null && a.dsAct>120}
+];
+function jStatus(jid,acctId){ return (journeyState[jid]&&journeyState[jid][acctId])||'Not started'; }
+function setJourneyStatus(jid,acctId,s){ journeyState[jid]=journeyState[jid]||{}; journeyState[jid][acctId]=s; saveJourneys(); }
+function toggleJourney(jid){ journeyOpen = journeyOpen===jid?'':jid; LS.set('journeyOpen',journeyOpen); route(); }
+function viewJourneys(accts){
+  let html=`<div class="card"><h3>Journey Orchestrator <span class="hint">automated CS/product outreach · membership auto-derived from live signals</span></h3>
+  <p class="mini">Define the outreach a customer should get at each lifecycle moment. Membership is computed live from account signals; track each account's progress below. <b>Emails send from your outreach tool</b> (Hubspot / Clari / Sales Outreach) — this orchestrates and tracks them.</p></div>`;
+  JOURNEYS.forEach(j=>{
+    const members=accts.filter(j.match);
+    const done=members.filter(m=>jStatus(j.id,m.id)==='Done').length, prog=members.filter(m=>jStatus(j.id,m.id)==='In progress').length;
+    const isOpen=journeyOpen===j.id;
+    html+=`<div class="card" style="margin:0 0 12px"><h3 style="cursor:pointer;border:none;margin:0 0 4px" onclick="toggleJourney('${j.id}')">${esc(j.name)} <span class="hint">${members.length} accounts · ${done} done · ${prog} in progress · ${isOpen?'▲ hide':'▼ show'}</span></h3>
+    <p class="mini" style="margin:2px 0 10px">${esc(j.desc)}</p>
+    <div class="row-actions" style="margin-bottom:10px">${j.steps.map((s,i)=>`<span class="pill p-gray" style="text-transform:none;font-weight:600">${i+1}. ${esc(s)}</span>`).join(' ')}</div>
+    ${isOpen?`<table><thead><tr><th>Account</th><th>Owner</th><th class="num">Renewal ARR</th><th>Status</th></tr></thead><tbody>
+      ${members.length?[...members].sort((a,b)=>b.renewalAmount-a.renewalAmount).map(m=>`<tr><td onclick="openAcct('${m.id}')" style="cursor:pointer"><b>${esc(m.name)}</b></td><td>${esc(m.ownerName)}</td><td class="num">${fmtMoney(m.renewalAmount)}</td><td><select class="select" onchange="setJourneyStatus('${j.id}','${m.id}',this.value)"><option${jStatus(j.id,m.id)==='Not started'?' selected':''}>Not started</option><option${jStatus(j.id,m.id)==='In progress'?' selected':''}>In progress</option><option${jStatus(j.id,m.id)==='Done'?' selected':''}>Done</option></select></td></tr>`).join(''):'<tr><td colspan="4" class="mini">No accounts match this journey in the current scope.</td></tr>'}
+    </tbody></table>`:''}
+    </div>`;
+  });
+  return html;
+}
 
 // ---- misc ----
 function filterTable(input,tblId){ const q=input.value.toLowerCase(); document.querySelectorAll('#'+tblId+' tbody tr').forEach(tr=>{ tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none'; }); }
 function toast(m){ const d=document.createElement('div'); d.className='err'; d.style.position='fixed'; d.style.bottom='20px'; d.style.left='50%'; d.style.transform='translateX(-50%)'; d.style.background='var(--greenbg)'; d.style.color='var(--green)'; d.style.zIndex=99; d.textContent=m; document.body.appendChild(d); setTimeout(()=>d.remove(),2600); }
-function renderError(m){ $('#app').innerHTML=`<div class="err">${esc(m)}</div><p class="mini">This is usually a momentary connection hiccup. <button class="btn" onclick="boot()">Retry now</button> &nbsp;or use Reload in the header. If it persists, the Salesforce connector may need reconnecting.</p>`; }
+function renderError(m){ $('#app').innerHTML=`<div class="err">${esc(m)}</div><p class="mini">This is usually a momentary connection hiccup. <button class="btn" onclick="boot()">Retry now</button> &nbsp;or use Reload in the header.</p>`; }
 function renderConnErr(){
+  $('#scopebar').style.display='none';
   $('#app').innerHTML=`<div class="err">This dashboard can’t reach the Axon Salesforce connector in your Cowork.</div>
   <div class="card" style="margin-top:8px"><h3>How to fix</h3>
   <p class="mini" style="line-height:1.7">This dashboard reads live data through the <b>Axon Salesforce</b> connector, which each person authorizes in their own Cowork. If you opened a shared link and see this message, it almost always means Salesforce isn’t connected on your side yet.</p>
   <p class="mini" style="line-height:1.7">1. Open Cowork <b>Settings → Connectors</b> (or Capabilities).<br>
   2. Connect <b>Axon Salesforce</b> and sign in with your Axon credentials.<br>
   3. Come back here and press <button class="btn" onclick="boot()">Retry</button> or Reload in the header.</p>
-  <p class="mini" style="color:var(--muted);margin-top:8px">Note: the connector is tied to each user’s own Salesforce login and permissions, so you’ll only see the accounts you’re entitled to. If Salesforce is already connected and this persists, ask your Cowork admin to confirm the Salesforce connector is enabled for your account.</p>
   </div>`;
 }
-function boot(){ $('#app').innerHTML='<div class="loading"><div class="spinner"></div><div>Querying Axon Salesforce — renewals, org hierarchy, purchase history & support signals…</div></div>'; waitForBridge().then(load).catch(e=>{ console.error(e); const m=(e&&e.message)||String(e); if(/allowlist|not in this artifact/i.test(m)) renderConnErr(); else renderError('Could not load Salesforce data — '+m+'.'); }); }
-window.boot=boot;
+let bootTries=0;
+function loadingHTML(msg){ return '<div class="loading"><div class="spinner"></div><div>'+msg+'</div></div>'; }
+function renderBridgeErr(){
+  $('#scopebar').style.display='none';
+  $('#app').innerHTML=`<div class="err">Couldn’t reach the Cowork data connection for Salesforce.</div>
+  <div class="card" style="margin-top:8px"><h3>Try this</h3>
+  <p class="mini" style="line-height:1.9">The dashboard reads Salesforce through Cowork’s live connection, which can take a moment to wake up — or it may have gone to sleep after the app sat idle. This is a connection/timing issue, not a problem with your data or permissions.<br><br>
+  1. Press <button class="btn" onclick="restart()">Retry</button> — it usually connects on a second attempt.<br>
+  2. If not, click <b>Reload</b> in the view header to reopen the dashboard fresh.<br>
+  3. Still stuck? Open Cowork <b>Settings → Connectors</b>, confirm <b>Axon Salesforce</b> is connected (reconnect if needed), then reload.</p></div>`;
+}
+function restart(){ bootTries=0; boot(); }
+function boot(){
+  $('#app').innerHTML=loadingHTML(bootTries?('Waking up the Salesforce connection… (attempt '+(bootTries+1)+' of 5)'):'Connecting to Axon Salesforce — renewals, org hierarchy, purchase history &amp; support signals…');
+  waitForBridge().then(load).catch(e=>{
+    console.error(e); const m=(e&&e.message)||String(e);
+    if(/allowlist|not in this artifact/i.test(m)){ renderConnErr(); return; }
+    if(/BRIDGE_NOT_READY/.test(m)){
+      if(bootTries<4){ bootTries++; setTimeout(boot,2500); return; }   // auto-retry a slow/sleepy bridge before giving up
+      renderBridgeErr(); return;
+    }
+    renderError('Could not load Salesforce data — '+m+'.');
+  });
+}
+window.boot=boot; window.restart=restart;
 
 document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
-window.setScope=setScope; window.openAcct=openAcct; window.closeSheet=closeSheet; window.setEscStatus=(i,s)=>{setEscStatus(i,s);route();}; window.addEscNote=addEscNote; window.setRenewSort=setRenewSort; window.setWeight=setWeight; window.saveWeights=saveWeights; window.resetWeights=resetWeights; window.filterTable=filterTable; window.toggleComm=toggleComm;
+Object.assign(window,{setScope,openAcct,closeSheet,setRenewSort,setWeight,saveWeights,resetWeights,filterTable,toggleComm,addEscNote,setTab,
+  setEscStatus:(i,s)=>{setEscStatus(i,s);route();},
+  setCsat,generateAllNewLogos,createOrOpenPlan,openPlan,setPlanObjectives,setPlanNotes,togglePlanMs,editPlanMsTitle,editPlanMsDue,addPlanMs,removePlanMs,regenPlan,delPlan,
+  setOwnerFilter,addCta,acceptAutoCta,ctaAction,delCta,quickCta,setJourneyStatus,toggleJourney});
 
 boot();
 </script>
